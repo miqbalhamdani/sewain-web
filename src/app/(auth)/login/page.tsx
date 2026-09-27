@@ -8,19 +8,15 @@ import {
   FormErrorMessage,
   FormLabel,
   Heading,
-  Icon,
   Input,
-  InputGroup,
-  InputRightElement,
   Text,
   useColorModeValue,
 } from '@chakra-ui/react'
 import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { RiEyeCloseLine } from 'react-icons/ri'
-import { MdOutlineRemoveRedEye } from 'react-icons/md'
 
+import { PasswordField } from 'components/fields/PasswordField'
 import { useSession } from 'contexts/SessionContext'
 import DefaultAuthLayout from 'layouts/auth/Default'
 import { api, problemCode } from 'lib/api/client'
@@ -45,7 +41,6 @@ export default function Login() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -122,6 +117,7 @@ export default function Login() {
                 fontSize="sm"
                 type="email"
                 name="email"
+                autoComplete="username"
                 placeholder="budi@contoh.id"
                 mb="24px"
                 fontWeight="500"
@@ -133,29 +129,14 @@ export default function Login() {
               <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
                 Password<Text color={brandStars}>*</Text>
               </FormLabel>
-              <InputGroup size="md">
-                <Input
-                  isRequired
-                  fontSize="sm"
-                  placeholder="Minimal 8 karakter"
-                  mb="24px"
-                  size="lg"
-                  type={show ? 'text' : 'password'}
-                  name="password"
-                  variant="auth"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <InputRightElement display="flex" alignItems="center" mt="4px">
-                  <Icon
-                    color={textColorSecondary}
-                    _hover={{ cursor: 'pointer' }}
-                    as={show ? RiEyeCloseLine : MdOutlineRemoveRedEye}
-                    onClick={() => setShow(!show)}
-                    aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
-                  />
-                </InputRightElement>
-              </InputGroup>
+              <PasswordField
+                isRequired
+                mb="24px"
+                placeholder="Password kamu"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
 
               {error !== '' && <FormErrorMessage mb="16px">{error}</FormErrorMessage>}
 

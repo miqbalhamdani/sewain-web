@@ -19,6 +19,7 @@ import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
+import { PasswordField } from 'components/fields/PasswordField'
 import { useSession } from 'contexts/SessionContext'
 import DefaultAuthLayout from 'layouts/auth/Default'
 import { api, fieldErrors, problemCode } from 'lib/api/client'
@@ -155,6 +156,7 @@ export default function Register() {
                 isRequired
                 variant="auth"
                 fontSize="sm"
+                autoComplete="organization"
                 placeholder="Rental Budi"
                 size="lg"
                 fontWeight="500"
@@ -197,6 +199,7 @@ export default function Register() {
                 variant="auth"
                 fontSize="sm"
                 type="email"
+                autoComplete="email"
                 placeholder="budi@contoh.id"
                 size="lg"
                 fontWeight="500"
@@ -210,15 +213,14 @@ export default function Register() {
               <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
                 Password<Text color={brandStars}>*</Text>
               </FormLabel>
-              <Input
+              <PasswordField
                 isRequired
-                variant="auth"
-                fontSize="sm"
-                type="password"
                 placeholder="Minimal 8 karakter"
-                size="lg"
-                fontWeight="500"
                 minLength={8}
+                // new-password, not current-password: this form creates a
+                // credential, so a manager should offer to generate and store
+                // one rather than fill an existing one.
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
