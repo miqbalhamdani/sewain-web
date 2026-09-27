@@ -44,25 +44,34 @@ selesai selama layarnya belum selesai.
 Yang sudah jalan hari ini:
 
 ```bash
-npm run dev        # localhost:3000, mengharapkan API di :8080
+npm run dev            # localhost:3000, mengharapkan API di :8080
 npm run build
 npm run start
 npm run lint
-npm run typecheck  # tsc --noEmit
+npm run typecheck      # tsc --noEmit
+npm run generate       # ../docs/openapi.yaml -> src/lib/api/schema.d.ts
+npm run generate:check # gagal kalau hasil generate belum di-commit
 ```
+
+**`generate` menulis, `generate:check` yang menegakkan.** Yang kedua menjalankan yang pertama lalu
+`git diff --exit-code` atas berkas hasilnya — itu terjemahan harafiah dari acceptance `S1-002`,
+"no-op di tree bersih". Polanya sama dengan `make generate` + `make generated-diff` di
+`sewain-api`, termasuk guard `test -f ../docs/openapi.yaml`: `docs` repo terpisah, dan yang cuma
+meng-clone repo ini berhak dapat satu kalimat, bukan stack trace dari generator yang tidak
+menemukan masukannya.
 
 Yang **belum ada** dan siapa yang membawanya:
 
 | Perintah | Isi | Datang bareng |
 |---|---|---|
-| `npm run generate` | openapi-typescript → `src/lib/api/schema.d.ts`, no-op di tree bersih | `S1-002` (`../docs/openapi.yaml`) |
 | `npm run test` | vitest + testing-library | setup tooling test |
 | `npm run e2e` | playwright | setup tooling test |
-| `npm run check` | generate + lint + typecheck + test — jalankan sebelum tiap PR | setelah tiga di atas ada |
+| `npm run check` | generate:check + lint + typecheck + test — jalankan sebelum tiap PR | setelah dua di atas ada |
 
-Jangan menulis layar yang memanggil `npm run generate` sebelum `S1-002` merge. `@testing-library/*`
-dan `@types/jest` sudah nangkring di `dependencies` warisan template — biarkan sampai runner test
-yang sebenarnya masuk, lalu pindahkan ke `devDependencies` sekalian.
+`@testing-library/*` dan `@types/jest` masih nangkring di `dependencies` warisan template —
+biarkan sampai runner test yang sebenarnya masuk, lalu pindahkan ke `devDependencies` sekalian.
+`typescript` **sudah** pindah, karena `openapi-typescript` v7 menuntut TS ≥ 5 dan repo ini
+tertinggal di 4.9.
 
 ---
 

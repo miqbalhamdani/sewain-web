@@ -30,11 +30,12 @@
     "react-icons": "^4.3.1",
     "react-is": "^18.0.0",
     "react-no-ssr": "^1.1.0",
-    "typescript": "^4.9.4",
     "web-vitals": "^1.1.2"
   },
   "scripts": {
     "dev": "next dev",
+    "generate": "test -f ../docs/openapi.yaml || { echo \"../docs/openapi.yaml not found -- the contract lives in the sibling docs repo\"; exit 1; } && openapi-typescript ../docs/openapi.yaml -o src/lib/api/schema.d.ts",
+    "generate:check": "npm run generate && git diff --exit-code -- src/lib/api/schema.d.ts || { echo \"generated schema is stale -- commit the result of 'npm run generate'\"; exit 1; }",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -58,7 +59,9 @@
     "@types/react-calendar": "^3.5.2",
     "@types/react-table": "^7.7.12",
     "eslint": "^8.23.0",
-    "eslint-config-next": "^15.1.4"
+    "eslint-config-next": "^15.1.4",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
   },
   "resolutions": {
     "@types/react": "18.0.31",
