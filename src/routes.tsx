@@ -1,33 +1,42 @@
-import { Icon } from '@chakra-ui/react';
-import { MdBarChart, MdPerson, MdHome, MdLock } from 'react-icons/md';
+import { Icon } from '@chakra-ui/react'
+import { MdBarChart, MdHome, MdOutlineShoppingCart, MdPerson } from 'react-icons/md'
 
-import { IRoute } from 'types/navigation';
+import { IRoute } from 'types/navigation'
 
+/**
+ * Backoffice navigation.
+ *
+ * Paths are absolute: `(app)` is a route group, so it contributes nothing to
+ * the URL. There is no `layout` field any more — the old one existed to
+ * concatenate `/admin` in front of everything, and route groups do that job
+ * without putting the word in the address bar.
+ */
 const routes: IRoute[] = [
   {
-    name: 'Main Dashboard',
-    layout: '/admin',
-    path: '/default',
+    name: 'Dashboard',
+    path: '/dashboard',
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
   },
   {
-    name: 'Data Tables',
-    layout: '/admin',
-    icon: <Icon as={MdBarChart} width="20px" height="20px" color="inherit" />,
-    path: '/data-tables',
+    name: 'Booking',
+    path: '/bookings',
+    icon: <Icon as={MdOutlineShoppingCart} width="20px" height="20px" color="inherit" />,
+    permission: 'bookings:read',
   },
   {
-    name: 'Profile',
-    layout: '/admin',
-    path: '/profile',
+    name: 'Penyewa',
+    path: '/customers',
     icon: <Icon as={MdPerson} width="20px" height="20px" color="inherit" />,
+    permission: 'customers:read',
   },
   {
-    name: 'Sign In',
-    layout: '/auth',
-    path: '/sign-in',
-    icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
+    // The one entry BR-003 names explicitly: an operator does not see it at
+    // all, rather than seeing it and being refused.
+    name: 'Laporan',
+    path: '/reports',
+    icon: <Icon as={MdBarChart} width="20px" height="20px" color="inherit" />,
+    permission: 'reports:read',
   },
-];
+]
 
-export default routes;
+export default routes

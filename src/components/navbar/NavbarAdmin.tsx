@@ -2,9 +2,6 @@
 // Chakra Imports
 import {
   Box,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
   Flex,
   Link,
   Text,
@@ -12,20 +9,17 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import AdminNavbarLinks from 'components/navbar/NavbarLinksAdmin'
-import { isWindowAvailable } from 'utils/navigation'
 
 export default function AdminNavbar (props: {
   secondary: boolean
-  message: string | boolean
   brandText: string
-  logoText: string
   fixed: boolean
   onOpen: (...args: any[]) => any
 }) {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
-    if (isWindowAvailable()) {
+    if (typeof window !== 'undefined') {
       // You now have access to `window`
       window.addEventListener('scroll', changeNavbar)
 
@@ -35,7 +29,7 @@ export default function AdminNavbar (props: {
     }
   })
 
-  const { secondary, message, brandText } = props
+  const { secondary, brandText } = props
 
   // Here are all the props that may change depending on navbar's type or state.(secondary, variant, scrolled)
   let mainText = useColorModeValue('navy.700', 'white')
@@ -53,7 +47,7 @@ export default function AdminNavbar (props: {
   let paddingX = '15px'
   let gap = '0px'
   const changeNavbar = () => {
-    if (isWindowAvailable() && window.scrollY > 1) {
+    if (typeof window !== 'undefined' && window.scrollY > 1) {
       setScrolled(true)
     } else {
       setScrolled(false)
@@ -113,20 +107,7 @@ export default function AdminNavbar (props: {
         mb={gap}
       >
         <Box mb={{ sm: '8px', md: '0px' }}>
-          <Breadcrumb>
-            <BreadcrumbItem color={secondaryText} fontSize='sm' mb='5px'>
-              <BreadcrumbLink href='#' color={secondaryText}>
-                Pages
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-
-            <BreadcrumbItem color={secondaryText} fontSize='sm'>
-              <BreadcrumbLink href='#' color={secondaryText}>
-                {brandText}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </Breadcrumb>
-          {/* Here we create navbar brand, based on route name */}
+          {/* The business name, read from /me by the layout (BR-004). */}
           <Link
             color={mainText}
             href='#'
@@ -148,11 +129,7 @@ export default function AdminNavbar (props: {
           </Link>
         </Box>
         <Box ms='auto' w={{ sm: '100%', md: 'unset' }}>
-          <AdminNavbarLinks
-            onOpen={props.onOpen}
-            secondary={props.secondary}
-            fixed={props.fixed}
-          />
+          <AdminNavbarLinks secondary={props.secondary} />
         </Box>
       </Flex> 
     </Box>

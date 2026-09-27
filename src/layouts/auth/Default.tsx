@@ -1,10 +1,7 @@
 // Chakra imports
-import { Box, Flex, Icon, useColorModeValue, Text } from '@chakra-ui/react';
+import { Box, Flex, useColorModeValue, Text } from '@chakra-ui/react';
 import Footer from 'components/footer/FooterAuth';
 import FixedPlugin from 'components/fixedPlugin/FixedPlugin';
-// Assets
-import { FaChevronLeft } from 'react-icons/fa';
-import Link from 'next/link';
 import { ReactNode } from 'react';
 
 function AuthIllustration(props: {
@@ -32,31 +29,11 @@ function AuthIllustration(props: {
         justifyContent="start"
         direction="column"
       >
-        <Link
-          href="/admin"
-          style={{
-            width: 'fit-content',
-            marginTop: '40px',
-          }}
-        >
-          <Flex
-            align="center"
-            ps={{ base: '25px', lg: '0px' }}
-            pt={{ lg: '0px', xl: '0px' }}
-            w="fit-content"
-          >
-            <Icon
-              as={FaChevronLeft}
-              me="12px"
-              h="13px"
-              w="8px"
-              color="secondaryGray.600"
-            />
-            <Text ms="0px" fontSize="sm" color="secondaryGray.600">
-              Back to Simmmple
-            </Text>
-          </Flex>
-        </Link>
+        {/* Horizon's "Back to Simmmple" chevron used to sit here. There is
+            nowhere to go back to: this IS the front door. */}
+        <Text mt="40px" fontSize="2xl" fontWeight="bold" color="brand.500">
+          Sewain
+        </Text>
         {children}
         <Box
           display={{ base: 'none', md: 'block' }}
@@ -78,7 +55,7 @@ function AuthIllustration(props: {
             borderBottomLeftRadius={{ lg: '120px', xl: '200px' }}
           />
         </Box>
-        <Footer mb={{ xl: '3vh' }} />
+        <Footer />
       </Flex>
       <FixedPlugin />
     </Flex>

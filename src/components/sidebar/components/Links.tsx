@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { IRoute } from 'types/navigation';
 import { usePathname } from 'next/navigation';
 import { useCallback } from 'react';
+import { useSession } from 'contexts/SessionContext';
 
 interface SidebarLinksProps {
   routes: IRoute[];
@@ -13,6 +14,7 @@ interface SidebarLinksProps {
 
 export function SidebarLinks(props: SidebarLinksProps) {
   const { routes } = props;
+  const { user } = useSession();
 
   //   Chakra color mode
   const pathname = usePathname();
@@ -35,11 +37,18 @@ export function SidebarLinks(props: SidebarLinksProps) {
   );
 
   // this function creates the links from the secondary accordions (for example auth -> sign-in -> default)
+  // BR-003: an entry the role has no permission for is not rendered at all.
+  // Not disabled -- a greyed-out link advertises a capability the user does
+  // not have, and the question it raises lands on support rather than on the
+  // person who could grant it.
+  const permitted = (route: IRoute) =>
+    !route.permission || (user?.permissions?.includes(route.permission) ?? false);
+
   const createLinks = (routes: IRoute[]) => {
-    return routes.map((route, index: number) => {
-      if (route.layout === '/admin' || route.layout === '/auth') {
+    return routes.filter(permitted).map((route, index: number) => {
+      {
         return (
-          <Link key={index} href={route.layout + route.path}>
+          <Link key={index} href={route.path}>
             {route.icon ? (
               <Box>
                 <HStack

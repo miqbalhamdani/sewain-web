@@ -4,6 +4,120 @@
  */
 
 export interface paths {
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Daftarkan usaha baru beserta pemiliknya
+         * @description **Satu-satunya jalur yang menciptakan usaha.** `POST /users` tidak pernah
+         *     membuatnya — ia mengundang operator ke usaha yang sudah ada (BR-004).
+         *
+         *     Baris `owners` dan baris `users` ber-`role = 'owner'` terbit dalam satu transaksi.
+         *     Gagal di tengah tidak boleh meninggalkan usaha yang tidak bisa dimasuki siapa pun.
+         *
+         *     **`slug` tidak ditanyakan di sini.** Ia opsional, butuh paket `usaha` ke atas, dan
+         *     diisi belakangan dari `PATCH /settings` (BR-025). Tiap field di layar daftar adalah
+         *     tempat orang berhenti, dan memilih subdomain adalah keputusan yang belum bisa
+         *     diambil sebelum produknya terlihat.
+         *
+         *     Balasannya membawa sesi yang langsung jadi — pemilik tidak perlu login lagi. Tapi
+         *     ia mendarat di **dinding verifikasi**, bukan dashboard: sesinya diterbitkan justru
+         *     supaya ia bisa memanggil `resend` tanpa login ulang (BR-006).
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tukar token verifikasi dengan email yang terverifikasi
+         * @description Sekali pakai, umur 24 jam. Kedaluwarsa, sudah dipakai, atau tidak dikenal →
+         *     `422 verification-token-invalid`.
+         *
+         *     Tanpa autentikasi: tautannya dibuka dari surel, dan browser yang membukanya belum
+         *     tentu browser yang mendaftar. Tokennya sendiri yang jadi bukti.
+         *
+         *     Kedaluwarsa bukan jalan buntu — `resend` selalu tersedia (BR-006).
+         */
+        post: operations["verifyEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kirim ulang surel verifikasi
+         * @description Butuh sesi, bukan token verifikasi — pemanggilnya sudah login, cuma belum
+         *     terverifikasi. Itu sebabnya `POST /auth/register` membalas dengan sesi.
+         *
+         *     3 req/jam per pengguna (§7). **Selalu tersedia**: satu-satunya hal yang bisa
+         *     dilakukan akun yang belum terverifikasi adalah memverifikasi dirinya, jadi
+         *     menutup jalan ini berarti menutup satu-satunya jalan keluar (BR-006).
+         */
+        post: operations["resendVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/accept-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Terima undangan dan pasang password
+         * @description Jalur yang membuat baris `users` ber-`status = 'invited'` dari `POST /users`
+         *     akhirnya bisa dipakai. Ia memasang `password_hash`, menyetel `status = 'active'`,
+         *     **dan mengisi `email_verified_at` sekaligus**.
+         *
+         *     Yang terakhir itu bukan jalan pintas: undangan hanya bisa diterima lewat tautan di
+         *     emailnya, jadi menerimanya **sudah** bukti kendali atas alamat itu. Mengirim surel
+         *     verifikasi kedua sesudah surel undangan adalah meminta bukti yang sama dua kali
+         *     (BR-004, BR-006).
+         *
+         *     Balasannya sesi yang langsung jadi, dan operator ini mendarat di dashboard — bukan
+         *     di dinding verifikasi, karena ia sudah melewatinya.
+         */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -217,6 +331,39 @@ export interface components {
             password: string;
         };
         /**
+         * @description Empat field, dan tidak lebih. Tiap satu yang ditambahkan adalah tempat orang
+         *     berhenti mengisi (BR-005).
+         */
+        RegisterRequest: {
+            /**
+             * Format: email
+             * @description Unik di seluruh sistem, bukan per usaha (BR-004).
+             * @example budi@contoh.id
+             */
+            email: string;
+            /** Format: password */
+            password: string;
+            /** @example Rental Budi */
+            business_name: string;
+            business_type: components["schemas"]["BusinessType"];
+        };
+        /**
+         * @description Preset pasar, dipilih sekali saat mendaftar. **Ia yang menentukan `pricing_unit`
+         *     seluruh resource pemilik itu** — juragan tidak pernah mengisi satuan harga di tiap
+         *     barang (BR-012, BR-017).
+         *
+         *     Enamnya ada di enum karena skema mengenal keenamnya, tapi **cuma dua yang dibuka di
+         *     fase 1**: `vehicle_rental` dan `equipment_rental`, dua-duanya bersatuan `day`.
+         *     `boarding_house` dan `apartment` fase 2, `venue` fase 3, `clinic` fase 4 — satuan
+         *     `clinic` sengaja belum diputuskan, bukan ditebak.
+         *
+         *     Layar daftar fase 1 karena itu merender **dua pilihan**, dengan bahasa juragan
+         *     ("rental mobil & motor", "rental alat"), bukan nama enum ini.
+         * @example vehicle_rental
+         * @enum {string}
+         */
+        BusinessType: "vehicle_rental" | "equipment_rental" | "boarding_house" | "apartment" | "venue" | "clinic";
+        /**
          * @description Dikembalikan login dan refresh. Membawa semua yang dibutuhkan klien untuk merender
          *     kerangka aplikasi tanpa request kedua.
          *
@@ -422,7 +569,7 @@ export interface components {
          *     underscore.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid";
+        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid";
         /**
          * @description Satu detail per-field di dalam `Problem`. Ia membawa apa pun yang dibutuhkan kegagalan
          *     spesifiknya, jadi properti tambahan diizinkan secara desain.
@@ -573,6 +720,110 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Usaha dan pemiliknya terbit. Sesi ikut di dalamnya. */
+            201: {
+                headers: {
+                    /** @description Refresh token, httpOnly, Secure, SameSite=Lax, host-only. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    verifyEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Terverifikasi. `users.email_verified_at` terisi. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    resendVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Surel dikirim ulang ke alamat terdaftar. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    /** Format: password */
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Undangan diterima. Akun aktif dan terverifikasi. */
+            200: {
+                headers: {
+                    /** @description Refresh token, httpOnly, Secure, SameSite=Lax, host-only. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
     login: {
         parameters: {
             query?: never;
