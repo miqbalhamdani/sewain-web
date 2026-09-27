@@ -18,7 +18,6 @@ import { useState } from 'react'
 
 import { PasswordField } from 'components/fields/PasswordField'
 import { useSession } from 'contexts/SessionContext'
-import DefaultAuthLayout from 'layouts/auth/Default'
 import { api, problemCode } from 'lib/api/client'
 
 /**
@@ -72,102 +71,100 @@ export default function Login() {
   }
 
   return (
-    <DefaultAuthLayout illustrationBackground="/img/auth/auth.png">
+    <Flex
+      maxW={{ base: '100%', md: 'max-content' }}
+      w="100%"
+      mx={{ base: 'auto', lg: '0px' }}
+      me="auto"
+      h="100%"
+      alignItems="start"
+      justifyContent="center"
+      mb={{ base: '30px', md: '60px' }}
+      px={{ base: '25px', md: '0px' }}
+      mt={{ base: '40px', md: '14vh' }}
+      flexDirection="column"
+    >
+      <Box me="auto">
+        <Heading color={textColor} fontSize="36px" mb="10px">
+          Masuk
+        </Heading>
+        <Text mb="36px" ms="4px" color={textColorSecondary} fontWeight="400" fontSize="md">
+          Masukkan email dan password usaha kamu.
+        </Text>
+      </Box>
+
       <Flex
-        maxW={{ base: '100%', md: 'max-content' }}
-        w="100%"
-        mx={{ base: 'auto', lg: '0px' }}
+        zIndex="2"
+        direction="column"
+        w={{ base: '100%', md: '420px' }}
+        maxW="100%"
+        background="transparent"
+        borderRadius="15px"
+        mx={{ base: 'auto', lg: 'unset' }}
         me="auto"
-        h="100%"
-        alignItems="start"
-        justifyContent="center"
-        mb={{ base: '30px', md: '60px' }}
-        px={{ base: '25px', md: '0px' }}
-        mt={{ base: '40px', md: '14vh' }}
-        flexDirection="column"
+        mb={{ base: '20px', md: 'auto' }}
       >
-        <Box me="auto">
-          <Heading color={textColor} fontSize="36px" mb="10px">
-            Masuk
-          </Heading>
-          <Text mb="36px" ms="4px" color={textColorSecondary} fontWeight="400" fontSize="md">
-            Masukkan email dan password usaha kamu.
+        <form onSubmit={onSubmit}>
+          <FormControl isInvalid={error !== ''}>
+            <FormLabel display="flex" ms="4px" fontSize="sm" fontWeight="500" color={textColor} mb="8px">
+              Email<Text color={brandStars}>*</Text>
+            </FormLabel>
+            <Input
+              isRequired
+              variant="auth"
+              fontSize="sm"
+              type="email"
+              name="email"
+              autoComplete="username"
+              placeholder="budi@contoh.id"
+              mb="24px"
+              fontWeight="500"
+              size="lg"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
+              Password<Text color={brandStars}>*</Text>
+            </FormLabel>
+            <PasswordField
+              isRequired
+              mb="24px"
+              placeholder="Password kamu"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            {error !== '' && <FormErrorMessage mb="16px">{error}</FormErrorMessage>}
+
+            <Button
+              type="submit"
+              fontSize="sm"
+              variant="brand"
+              fontWeight="500"
+              w="100%"
+              h="50"
+              mt="8px"
+              mb="24px"
+              isLoading={busy}
+            >
+              Masuk
+            </Button>
+          </FormControl>
+        </form>
+
+        <Flex flexDirection="column" justifyContent="center" alignItems="start" maxW="100%" mt="0px">
+          <Text color={textColorSecondary} fontWeight="400" fontSize="14px">
+            Belum punya akun?
+            <NextLink href="/register">
+              <Text as="span" ms="5px" color={brandStars} fontWeight="500">
+                Daftar usaha
+              </Text>
+            </NextLink>
           </Text>
-        </Box>
-
-        <Flex
-          zIndex="2"
-          direction="column"
-          w={{ base: '100%', md: '420px' }}
-          maxW="100%"
-          background="transparent"
-          borderRadius="15px"
-          mx={{ base: 'auto', lg: 'unset' }}
-          me="auto"
-          mb={{ base: '20px', md: 'auto' }}
-        >
-          <form onSubmit={onSubmit}>
-            <FormControl isInvalid={error !== ''}>
-              <FormLabel display="flex" ms="4px" fontSize="sm" fontWeight="500" color={textColor} mb="8px">
-                Email<Text color={brandStars}>*</Text>
-              </FormLabel>
-              <Input
-                isRequired
-                variant="auth"
-                fontSize="sm"
-                type="email"
-                name="email"
-                autoComplete="username"
-                placeholder="budi@contoh.id"
-                mb="24px"
-                fontWeight="500"
-                size="lg"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
-                Password<Text color={brandStars}>*</Text>
-              </FormLabel>
-              <PasswordField
-                isRequired
-                mb="24px"
-                placeholder="Password kamu"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-
-              {error !== '' && <FormErrorMessage mb="16px">{error}</FormErrorMessage>}
-
-              <Button
-                type="submit"
-                fontSize="sm"
-                variant="brand"
-                fontWeight="500"
-                w="100%"
-                h="50"
-                mt="8px"
-                mb="24px"
-                isLoading={busy}
-              >
-                Masuk
-              </Button>
-            </FormControl>
-          </form>
-
-          <Flex flexDirection="column" justifyContent="center" alignItems="start" maxW="100%" mt="0px">
-            <Text color={textColorSecondary} fontWeight="400" fontSize="14px">
-              Belum punya akun?
-              <NextLink href="/register">
-                <Text as="span" ms="5px" color={brandStars} fontWeight="500">
-                  Daftar usaha
-                </Text>
-              </NextLink>
-            </Text>
-          </Flex>
         </Flex>
       </Flex>
-    </DefaultAuthLayout>
+    </Flex>
   )
 }

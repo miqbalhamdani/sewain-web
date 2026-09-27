@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PropsWithChildren, useEffect, useState } from 'react'
 
 import AppWrappers from 'app/AppWrappers'
-import Footer from 'components/footer/FooterAdmin'
+import Footer from 'components/footer/Footer'
 import Navbar from 'components/navbar/NavbarAdmin'
 import Sidebar from 'components/sidebar/Sidebar'
 import { useSession } from 'contexts/SessionContext'
@@ -93,7 +93,8 @@ function AppLayoutInner(props: DashboardLayoutProps) {
           <Box mx="auto" p={{ base: '20px', md: '30px' }} pe="20px" minH="100vh" pt="50px">
             {children}
           </Box>
-          <Box>
+          {/* Spacing belongs to the parent: the footer sets none of its own. */}
+          <Box px={{ base: '30px', md: '50px' }}>
             <Footer />
           </Box>
         </Box>

@@ -21,7 +21,6 @@ import { useState } from 'react'
 
 import { PasswordField } from 'components/fields/PasswordField'
 import { useSession } from 'contexts/SessionContext'
-import DefaultAuthLayout from 'layouts/auth/Default'
 import { api, fieldErrors, problemCode } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
 
@@ -113,151 +112,149 @@ export default function Register() {
   }
 
   return (
-    <DefaultAuthLayout illustrationBackground="/img/auth/auth.png">
+    <Flex
+      maxW={{ base: '100%', md: 'max-content' }}
+      w="100%"
+      mx={{ base: 'auto', lg: '0px' }}
+      me="auto"
+      h="100%"
+      alignItems="start"
+      justifyContent="center"
+      mb={{ base: '30px', md: '60px' }}
+      px={{ base: '25px', md: '0px' }}
+      mt={{ base: '40px', md: '10vh' }}
+      flexDirection="column"
+    >
+      <Box me="auto">
+        <Heading color={textColor} fontSize="36px" mb="10px">
+          Daftar usaha
+        </Heading>
+        <Text mb="28px" ms="4px" color={textColorSecondary} fontWeight="400" fontSize="md">
+          Gratis, dan bisa langsung dipakai.
+        </Text>
+      </Box>
+
       <Flex
-        maxW={{ base: '100%', md: 'max-content' }}
-        w="100%"
-        mx={{ base: 'auto', lg: '0px' }}
+        zIndex="2"
+        direction="column"
+        w={{ base: '100%', md: '420px' }}
+        maxW="100%"
+        background="transparent"
+        borderRadius="15px"
+        mx={{ base: 'auto', lg: 'unset' }}
         me="auto"
-        h="100%"
-        alignItems="start"
-        justifyContent="center"
-        mb={{ base: '30px', md: '60px' }}
-        px={{ base: '25px', md: '0px' }}
-        mt={{ base: '40px', md: '10vh' }}
-        flexDirection="column"
+        mb={{ base: '20px', md: 'auto' }}
       >
-        <Box me="auto">
-          <Heading color={textColor} fontSize="36px" mb="10px">
-            Daftar usaha
-          </Heading>
-          <Text mb="28px" ms="4px" color={textColorSecondary} fontWeight="400" fontSize="md">
-            Gratis, dan bisa langsung dipakai.
-          </Text>
-        </Box>
-
-        <Flex
-          zIndex="2"
-          direction="column"
-          w={{ base: '100%', md: '420px' }}
-          maxW="100%"
-          background="transparent"
-          borderRadius="15px"
-          mx={{ base: 'auto', lg: 'unset' }}
-          me="auto"
-          mb={{ base: '20px', md: 'auto' }}
-        >
-          <form onSubmit={onSubmit}>
-            <FormControl isInvalid={errors.business_name !== undefined} mb="20px">
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
-                Nama usaha<Text color={brandStars}>*</Text>
-              </FormLabel>
-              <Input
-                isRequired
-                variant="auth"
-                fontSize="sm"
-                autoComplete="organization"
-                placeholder="Rental Budi"
-                size="lg"
-                fontWeight="500"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-              />
-              <FormErrorMessage>{errors.business_name}</FormErrorMessage>
-            </FormControl>
-
-            <FormControl mb="20px">
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor}>
-                Jenis usaha
-              </FormLabel>
-              {/* No price-unit picker anywhere on this form. Both phase-1
-                  presets are priced per day, and the server fills pricing_unit
-                  from this choice — asking would be asking a question that
-                  only exists for a vertical nobody has opened (BR-017). */}
-              <RadioGroup value={businessType} onChange={(v) => setBusinessType(v as BusinessType)}>
-                <Stack spacing="10px">
-                  {PRESETS.map((preset) => (
-                    <Radio key={preset.value} value={preset.value} colorScheme="brand">
-                      <Text fontSize="sm" fontWeight="500" color={textColor}>
-                        {preset.label}
-                      </Text>
-                      <Text fontSize="xs" color={textColorSecondary}>
-                        {preset.hint}
-                      </Text>
-                    </Radio>
-                  ))}
-                </Stack>
-              </RadioGroup>
-            </FormControl>
-
-            <FormControl isInvalid={errors.email !== undefined} mb="20px">
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
-                Email<Text color={brandStars}>*</Text>
-              </FormLabel>
-              <Input
-                isRequired
-                variant="auth"
-                fontSize="sm"
-                type="email"
-                autoComplete="email"
-                placeholder="budi@contoh.id"
-                size="lg"
-                fontWeight="500"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <FormErrorMessage>{errors.email}</FormErrorMessage>
-            </FormControl>
-
-            <FormControl isInvalid={errors.password !== undefined} mb="8px">
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
-                Password<Text color={brandStars}>*</Text>
-              </FormLabel>
-              <PasswordField
-                isRequired
-                placeholder="Minimal 8 karakter"
-                minLength={8}
-                // new-password, not current-password: this form creates a
-                // credential, so a manager should offer to generate and store
-                // one rather than fill an existing one.
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <FormErrorMessage>{errors.password}</FormErrorMessage>
-            </FormControl>
-
-            <FormControl isInvalid={formError !== ''}>
-              {formError !== '' && <FormErrorMessage mb="12px">{formError}</FormErrorMessage>}
-            </FormControl>
-
-            <Button
-              type="submit"
+        <form onSubmit={onSubmit}>
+          <FormControl isInvalid={errors.business_name !== undefined} mb="20px">
+            <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
+              Nama usaha<Text color={brandStars}>*</Text>
+            </FormLabel>
+            <Input
+              isRequired
+              variant="auth"
               fontSize="sm"
-              variant="brand"
+              autoComplete="organization"
+              placeholder="Rental Budi"
+              size="lg"
               fontWeight="500"
-              w="100%"
-              h="50"
-              mt="16px"
-              mb="24px"
-              isLoading={busy}
-            >
-              Daftar
-            </Button>
-          </form>
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+            />
+            <FormErrorMessage>{errors.business_name}</FormErrorMessage>
+          </FormControl>
 
-          <Flex flexDirection="column" justifyContent="center" alignItems="start" maxW="100%">
-            <Text color={textColorSecondary} fontWeight="400" fontSize="14px">
-              Sudah punya akun?
-              <NextLink href="/login">
-                <Text as="span" ms="5px" color={brandStars} fontWeight="500">
-                  Masuk
-                </Text>
-              </NextLink>
-            </Text>
-          </Flex>
+          <FormControl mb="20px">
+            <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor}>
+              Jenis usaha
+            </FormLabel>
+            {/* No price-unit picker anywhere on this form. Both phase-1
+                presets are priced per day, and the server fills pricing_unit
+                from this choice — asking would be asking a question that
+                only exists for a vertical nobody has opened (BR-017). */}
+            <RadioGroup value={businessType} onChange={(v) => setBusinessType(v as BusinessType)}>
+              <Stack spacing="10px">
+                {PRESETS.map((preset) => (
+                  <Radio key={preset.value} value={preset.value} colorScheme="brand">
+                    <Text fontSize="sm" fontWeight="500" color={textColor}>
+                      {preset.label}
+                    </Text>
+                    <Text fontSize="xs" color={textColorSecondary}>
+                      {preset.hint}
+                    </Text>
+                  </Radio>
+                ))}
+              </Stack>
+            </RadioGroup>
+          </FormControl>
+
+          <FormControl isInvalid={errors.email !== undefined} mb="20px">
+            <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
+              Email<Text color={brandStars}>*</Text>
+            </FormLabel>
+            <Input
+              isRequired
+              variant="auth"
+              fontSize="sm"
+              type="email"
+              autoComplete="email"
+              placeholder="budi@contoh.id"
+              size="lg"
+              fontWeight="500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <FormErrorMessage>{errors.email}</FormErrorMessage>
+          </FormControl>
+
+          <FormControl isInvalid={errors.password !== undefined} mb="8px">
+            <FormLabel ms="4px" fontSize="sm" fontWeight="500" color={textColor} display="flex">
+              Password<Text color={brandStars}>*</Text>
+            </FormLabel>
+            <PasswordField
+              isRequired
+              placeholder="Minimal 8 karakter"
+              minLength={8}
+              // new-password, not current-password: this form creates a
+              // credential, so a manager should offer to generate and store
+              // one rather than fill an existing one.
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <FormErrorMessage>{errors.password}</FormErrorMessage>
+          </FormControl>
+
+          <FormControl isInvalid={formError !== ''}>
+            {formError !== '' && <FormErrorMessage mb="12px">{formError}</FormErrorMessage>}
+          </FormControl>
+
+          <Button
+            type="submit"
+            fontSize="sm"
+            variant="brand"
+            fontWeight="500"
+            w="100%"
+            h="50"
+            mt="16px"
+            mb="24px"
+            isLoading={busy}
+          >
+            Daftar
+          </Button>
+        </form>
+
+        <Flex flexDirection="column" justifyContent="center" alignItems="start" maxW="100%">
+          <Text color={textColorSecondary} fontWeight="400" fontSize="14px">
+            Sudah punya akun?
+            <NextLink href="/login">
+              <Text as="span" ms="5px" color={brandStars} fontWeight="500">
+                Masuk
+              </Text>
+            </NextLink>
+          </Text>
         </Flex>
       </Flex>
-    </DefaultAuthLayout>
+    </Flex>
   )
 }

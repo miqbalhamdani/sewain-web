@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useState } from 'react'
 
 import { useSession } from 'contexts/SessionContext'
-import DefaultAuthLayout from 'layouts/auth/Default'
 import { api, problemCode } from 'lib/api/client'
 
 /**
@@ -77,69 +76,67 @@ function VerifyEmail() {
   }
 
   return (
-    <DefaultAuthLayout illustrationBackground="/img/auth/auth.png">
-      <Flex
-        maxW={{ base: '100%', md: 'max-content' }}
-        w="100%"
-        mx={{ base: 'auto', lg: '0px' }}
-        me="auto"
-        h="100%"
-        alignItems="start"
-        justifyContent="center"
-        px={{ base: '25px', md: '0px' }}
-        mt={{ base: '40px', md: '14vh' }}
-        flexDirection="column"
-      >
-        <Box me="auto" maxW="420px">
-          <Heading color={textColor} fontSize="36px" mb="10px">
-            Verifikasi email
-          </Heading>
+    <Flex
+      maxW={{ base: '100%', md: 'max-content' }}
+      w="100%"
+      mx={{ base: 'auto', lg: '0px' }}
+      me="auto"
+      h="100%"
+      alignItems="start"
+      justifyContent="center"
+      px={{ base: '25px', md: '0px' }}
+      mt={{ base: '40px', md: '14vh' }}
+      flexDirection="column"
+    >
+      <Box me="auto" maxW="420px">
+        <Heading color={textColor} fontSize="36px" mb="10px">
+          Verifikasi email
+        </Heading>
 
-          {state === 'verifying' ? (
-            <Flex align="center" gap="12px" mt="24px">
-              <Spinner color="brand.500" />
-              <Text color={textColorSecondary}>Memverifikasi…</Text>
-            </Flex>
-          ) : (
-            <>
-              <Text mb="24px" ms="4px" color={textColorSecondary} fontWeight="400" fontSize="md">
-                Kami mengirim tautan ke <b>{user?.name ?? 'email kamu'}</b>. Klik tautan itu untuk
-                mulai memakai Sewain.
-              </Text>
+        {state === 'verifying' ? (
+          <Flex align="center" gap="12px" mt="24px">
+            <Spinner color="brand.500" />
+            <Text color={textColorSecondary}>Memverifikasi…</Text>
+          </Flex>
+        ) : (
+          <>
+            <Text mb="24px" ms="4px" color={textColorSecondary} fontWeight="400" fontSize="md">
+              Kami mengirim tautan ke <b>{user?.name ?? 'email kamu'}</b>. Klik tautan itu untuk
+              mulai memakai Sewain.
+            </Text>
 
-              {/* Why this gate exists, in the owner's terms rather than ours.
-                  BR-006: email is the only owner identity with proof behind
-                  it, so an unverified account has no recovery path at all. */}
-              <Text mb="24px" ms="4px" color={textColorSecondary} fontSize="sm">
-                Email kamu satu-satunya cara memulihkan akun kalau lupa password. Karena itu ia
-                diverifikasi dulu, sebelum ada data yang bisa hilang.
-              </Text>
+            {/* Why this gate exists, in the owner's terms rather than ours.
+                BR-006: email is the only owner identity with proof behind
+                it, so an unverified account has no recovery path at all. */}
+            <Text mb="24px" ms="4px" color={textColorSecondary} fontSize="sm">
+              Email kamu satu-satunya cara memulihkan akun kalau lupa password. Karena itu ia
+              diverifikasi dulu, sebelum ada data yang bisa hilang.
+            </Text>
 
-              {message !== '' && (
-                <Alert status={state === 'sent' ? 'success' : 'warning'} borderRadius="12px" mb="20px">
-                  <AlertIcon />
-                  {message}
-                </Alert>
-              )}
+            {message !== '' && (
+              <Alert status={state === 'sent' ? 'success' : 'warning'} borderRadius="12px" mb="20px">
+                <AlertIcon />
+                {message}
+              </Alert>
+            )}
 
-              {/* Always available: expiry must not be a dead end, because
-                  verifying is the only thing this account can do (BR-006). */}
-              <Button variant="brand" fontSize="sm" fontWeight="500" w="100%" h="50" onClick={resend}>
-                Kirim ulang tautan
-              </Button>
-            </>
-          )}
-        </Box>
-      </Flex>
-    </DefaultAuthLayout>
+            {/* Always available: expiry must not be a dead end, because
+                verifying is the only thing this account can do (BR-006). */}
+            <Button variant="brand" fontSize="sm" fontWeight="500" w="100%" h="50" onClick={resend}>
+              Kirim ulang tautan
+            </Button>
+          </>
+        )}
+      </Box>
+    </Flex>
   )
 }
 
 export default function Page() {
   // useSearchParams needs a Suspense boundary in the App Router.
   return (
-    <Suspense fallback={null}>
-      <VerifyEmail />
-    </Suspense>
+  <Suspense fallback={null}>
+    <VerifyEmail />
+  </Suspense>
   )
 }
