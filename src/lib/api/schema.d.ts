@@ -569,7 +569,7 @@ export interface components {
          *     underscore.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid";
+        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight";
         /**
          * @description Satu detail per-field di dalam `Problem`. Ia membawa apa pun yang dibutuhkan kegagalan
          *     spesifiknya, jadi properti tambahan diizinkan secara desain.
