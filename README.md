@@ -17,4 +17,4 @@ npm run lint
 
 - **Aturan kerja & batas arsitektur:** [`CLAUDE.md`](./CLAUDE.md)
 - **Kontrak produk & API:** [`../docs/`](../docs/) — mulai dari
-  [`BACKLOG.md`](../docs/BACKLOG.md)
+  [`05-backlog.md`](../docs/05-backlog.md)

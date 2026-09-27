@@ -9,7 +9,6 @@ import tableDataCheck from 'views/admin/dataTables/variables/tableDataCheck';
 import tableDataColumns from 'views/admin/dataTables/variables/tableDataColumns';
 import tableDataComplex from 'views/admin/dataTables/variables/tableDataComplex';
 import React from 'react';
-import AdminLayout from 'layouts/admin';
 
 export default function DataTables() {
   return (

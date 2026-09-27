@@ -11,7 +11,7 @@ import Footer from 'components/footer/FooterAdmin';
 import Navbar from 'components/navbar/NavbarAdmin';
 import Sidebar from 'components/sidebar/Sidebar';
 import { SidebarContext } from 'contexts/SidebarContext';
-import { PropsWithChildren, useEffect, useState } from 'react';
+import { PropsWithChildren, useState } from 'react';
 import routes from 'routes';
 import AppWrappers from 'app/AppWrappers';
 import {
@@ -32,10 +32,6 @@ function AdminLayoutInner(props: DashboardLayoutProps) {
   const [toggleSidebar, setToggleSidebar] = useState(false);
   // functions for changing the states from components
   const { onOpen } = useDisclosure();
-
-  useEffect(() => {
-    window.document.documentElement.dir = 'ltr';
-  }, []);
 
   const bg = useColorModeValue('secondaryGray.300', 'navy.900');
 

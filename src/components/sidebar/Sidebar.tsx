@@ -29,7 +29,6 @@ const Scrollbars = dynamic(
 // Assets
 import { IoMenuOutline } from 'react-icons/io5';
 import { IRoute } from 'types/navigation';
-import { isWindowAvailable } from 'utils/navigation';
 
 interface SidebarResponsiveProps {
   routes: IRoute[];
@@ -101,11 +100,7 @@ export function SidebarResponsive(props: SidebarResponsiveProps) {
       <Drawer
         isOpen={isOpen}
         onClose={onClose}
-        placement={
-          isWindowAvailable() && window.document.documentElement.dir === 'rtl'
-            ? 'right'
-            : 'left'
-        }
+        placement="left"
         finalFocusRef={btnRef}
       >
         <DrawerOverlay />
