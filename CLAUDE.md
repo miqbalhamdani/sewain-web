@@ -220,6 +220,15 @@ pengecualian terhadap BR-003.
 
 1. **Menghilangkan field ≠ mengirim `null`.** Key yang absen memakai default server; `null`
    eksplisit adalah `422`. Buang field opsional yang kosong sebelum submit.
+
+   > **Pengecualiannya empat, dan semuanya di `resources`:** `deposit_amount`,
+   > `late_fee_per_unit`, `min_duration`, `max_duration`. Untuk keempatnya `null` adalah
+   > nilai yang sah dan bermakna — "aturan ini tidak berlaku" (BR-016) — dan pada `PATCH`
+   > ia **satu-satunya cara mencabut** nilai yang sudah ada. Aturan di atas menjaga field
+   > yang dikelola server; keempat ini bukan. `04-api-spec.md` §3.2 menulisnya lengkap.
+   >
+   > `0` **bukan** pengganti `null` di sini. Database menolaknya, dan pesannya menyuruh
+   > pengguna mengosongkan field-nya — bukan mengisi angka lain (PRD §5 A1).
 2. **Jangan pernah kirim field yang dikelola server**: `id`, `owner_id`, `code`,
    `end_at_with_buffer`, `unit_price`, `pricing_unit`, `deposit_amount`, `late_fee_per_unit`,
    `actual_return_at`.
@@ -386,7 +395,8 @@ handler.
   `app.sewain.id`; cookie ber-`Domain=.sewain.id` bocor ke seluruh halaman publik.
 - Menaruh `ChakraProvider` atau CSS global Horizon di `src/app/layout.tsx`.
 - Cache atau `revalidate` data ketersediaan di halaman publik.
-- Kirim `null` untuk field opsional yang dikosongkan pengguna.
+- Kirim `null` untuk field opsional yang dikosongkan pengguna — **kecuali keempat nominal
+  `resources`**, tempat `null` justru satu-satunya cara mencabutnya (§Data & form aturan 1).
 - Retry `409` secara otomatis.
 - Menunggu pekerjaan asinkron di dalam satu request. Ekspor dan unggah bukti transfer membalas
   `202` + `job_id`; layar **poll `GET /jobs/{id}`** dan tetap bisa dipakai selama menunggu

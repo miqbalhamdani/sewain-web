@@ -1,5 +1,11 @@
 import { Icon } from '@chakra-ui/react'
-import { MdBarChart, MdHome, MdOutlineShoppingCart, MdPerson } from 'react-icons/md'
+import {
+  MdBarChart,
+  MdHome,
+  MdInventory2,
+  MdOutlineShoppingCart,
+  MdPerson,
+} from 'react-icons/md'
 
 import { IRoute } from 'types/navigation'
 
@@ -16,6 +22,14 @@ const routes: IRoute[] = [
     name: 'Dashboard',
     path: '/dashboard',
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
+  },
+  {
+    // Both roles: an operator reads the catalogue for every job they do, and
+    // only the write actions inside are hidden from them (BR-003).
+    name: 'Barang',
+    path: '/catalog',
+    icon: <Icon as={MdInventory2} width="20px" height="20px" color="inherit" />,
+    permission: 'resources:read',
   },
   {
     name: 'Booking',

@@ -317,6 +317,153 @@ export interface paths {
         patch: operations["updateUser"];
         trace?: never;
     };
+    "/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jenis barang di usaha ini
+         * @description Jenis barang, bukan unit fisiknya (BR-010). Operator ikut membacanya — seluruh
+         *     pekerjaannya, dari booking sampai serah-terima, menunjuk katalog ini.
+         */
+        get: operations["listResources"];
+        put?: never;
+        /**
+         * Daftarkan jenis barang baru
+         * @description Hanya peran `owner` (`resources:write`).
+         *
+         *     **`pricing_unit` tidak ada di body dan memang tidak bisa dikirim.** Server
+         *     mengisinya dari `owners.business_type` saat barisnya dibuat (BR-012, BR-017),
+         *     dan karena ia tidak terdaftar di `ResourceCreate`, klien yang digenerate tidak
+         *     punya field-nya sama sekali — penolakan di waktu kompilasi, bukan `422`.
+         *
+         *     Empat nominal boleh `null` atau dihilangkan, dan dua-duanya berarti aturannya
+         *     tidak berlaku untuk barang ini. **`0` ditolak database** (BR-016).
+         */
+        post: operations["createResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Satu jenis barang */
+        get: operations["getResource"];
+        put?: never;
+        post?: never;
+        /**
+         * Hapus jenis barang
+         * @description Hanya peran `owner` (`records:delete`) — BR-003 melarang operator menghapus
+         *     apa pun, dan itu sebagian besar alasan seorang juragan mau membagikan akun.
+         *
+         *     Soft delete: `deleted_at` terisi, barisnya tetap ada. Booking lama menunjuk
+         *     snapshot-nya sendiri (BR-014), jadi riwayat tetap terbaca.
+         */
+        delete: operations["deleteResource"];
+        options?: never;
+        head?: never;
+        /**
+         * Ubah jenis barang
+         * @description Hanya peran `owner` (`resources:write`). Field `base_price`, `deposit_amount`,
+         *     dan `late_fee_per_unit` butuh **`pricing:write`** di atas itu — BR-003 menyebut
+         *     nominalnya, bukan endpoint-nya.
+         *
+         *     **Mengubah harga tidak menyentuh booking mana pun** (BR-014). Responsnya
+         *     menyebut berapa booking berjalan yang tetap memakai harga lama, supaya pemilik
+         *     tidak perlu menebak.
+         *
+         *     Untuk keempat nominal, **`null` eksplisit adalah satu-satunya cara mencabut**
+         *     nilai yang sudah ada; menghilangkan key-nya membiarkan nilainya apa adanya.
+         *     Itu pengecualian yang disengaja terhadap konvensi "`null` eksplisit = `422`",
+         *     yang berlaku untuk field yang dikelola server.
+         */
+        patch: operations["updateResource"];
+        trace?: never;
+    };
+    "/resources/{id}/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Unit fisik dari satu jenis barang
+         * @description Tiga Avanza adalah satu `Resource` dan tiga `ResourceUnit` — booking selalu
+         *     menunjuk satu unit, tidak pernah hanya jenisnya (BR-010).
+         */
+        get: operations["listUnits"];
+        put?: never;
+        /**
+         * Tambah unit fisik
+         * @description Hanya peran `owner` (`units:write`).
+         *
+         *     `code` **dikirim klien** — plat nomor atau nomor seri, yang dipakai operator
+         *     mengenali barangnya secara fisik (BR-011). Jangan tertukar dengan
+         *     `bookings.code`, yang dihasilkan server dari pencacah.
+         *
+         *     Kode yang sudah dipakai di usaha ini dibalas `422` dengan `errors[].field`
+         *     bernilai `code`. Usaha lain boleh memakai kode yang sama.
+         */
+        post: operations["createUnit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/units/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Hapus unit
+         * @description Hanya peran `owner` (`records:delete`). Soft delete, dan kodenya kembali bisa
+         *     dipakai — unique index-nya `WHERE deleted_at IS NULL` (BR-011).
+         */
+        delete: operations["deleteUnit"];
+        options?: never;
+        head?: never;
+        /**
+         * Ubah unit, termasuk statusnya
+         * @description Hanya peran `owner` (`units:write`).
+         *
+         *     **Mengubah status ke `maintenance` atau `retired` tidak menghapus dan tidak
+         *     membatalkan booking yang sudah ada** untuk unit itu. Responsnya `200` beserta
+         *     daftar booking terdampak, dan pemilik yang memutuskan (BR-013). Menolak
+         *     perubahannya berarti memaksa juragan membatalkan sendiri satu per satu sebelum
+         *     boleh bilang mobilnya di bengkel.
+         *
+         *     Unit di luar `active` hilang dari pencarian ketersediaan, tapi tetap punya
+         *     lajur `maintenance` di kalender; `retired` tidak punya lajur sama sekali.
+         *
+         *     Tidak ada `GET /units/{id}` — daftarnya dibaca lewat jenis barangnya.
+         */
+        patch: operations["updateUnit"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -559,6 +706,239 @@ export interface components {
              * @enum {string}
              */
             status?: "active" | "disabled";
+        };
+        /**
+         * @description Satuan harga. **Diisi server dari `owners.business_type`, tidak pernah dikirim
+         *     klien** (BR-012, BR-017) — karena itu ia ada di `Resource` tapi tidak di
+         *     `ResourceCreate` maupun `ResourceUpdate`.
+         *
+         *     Ia dipakai dua kali di perhitungan uang: `duration_qty`, dan rumus denda telat
+         *     `ceil(kelebihan / pricing_unit)` (BR-046). Nilai asing bukan data kotor, ia
+         *     tagihan yang salah — jadi keempatnya juga ditegakkan CHECK di database.
+         *
+         *     Fase 1 selalu `day`: kedua preset yang dibuka (`vehicle_rental`,
+         *     `equipment_rental`) cuma punya satu satuan, jadi juragan rental tidak pernah
+         *     melihat field satuan harga di layar mana pun.
+         * @enum {string}
+         */
+        PricingUnit: "hour" | "day" | "week" | "month";
+        /**
+         * @description `inactive` berarti barang itu tidak ditawarkan lagi tanpa menghapus riwayatnya.
+         * @enum {string}
+         */
+        ResourceStatus: "active" | "inactive";
+        /**
+         * @description Hanya `active` yang muncul di pencarian ketersediaan (BR-013). `maintenance`
+         *     tetap punya lajur di kalender; `retired` tidak punya lajur sama sekali.
+         *
+         *     Tidak ada `rented` di sini, dan itu disengaja: "sedang disewa" adalah turunan
+         *     dari booking ber-status `picked_up`, bukan keadaan yang disimpan (BR-023).
+         *     Dua sumber untuk satu fakta berarti satu di antaranya akan salah.
+         * @enum {string}
+         */
+        UnitStatus: "active" | "maintenance" | "retired";
+        /**
+         * @description Jenis barang. Unit fisiknya ada di `ResourceUnit`, dan booking selalu menunjuk
+         *     unit — tidak pernah hanya jenisnya (BR-010).
+         *
+         *     **Keempat nominal dan `category` wajib ada di respons walau bernilai `null`.**
+         *     Di sebuah *request* "tidak dikirim" dan "`null`" adalah dua perintah berbeda;
+         *     di respons tidak ada bedanya — barangnya berdeposit atau tidak. Menghilangkan
+         *     key-nya memaksa klien menebak mana dari dua arti itu yang dimaksud, jadi
+         *     field-nya selalu terbit dan `null` mengatakannya sendiri.
+         */
+        Resource: {
+            /** Format: uuid */
+            id: string;
+            /** @example Avanza 2021 */
+            name: string;
+            /** @example Mobil */
+            category: string | null;
+            pricing_unit: components["schemas"]["PricingUnit"];
+            /**
+             * Format: int64
+             * @description Rupiah penuh, bukan minor unit: `350000` berarti Rp 350.000.
+             * @example 350000
+             */
+            base_price: number;
+            /**
+             * Format: int64
+             * @description `null` berarti barang ini tidak berdeposit — BR-045 tidak menerbitkan
+             *     barisnya, dan BR-048/BR-049 tidak berlaku. **`0` ditolak database**: tidak
+             *     ada kasus rental yang butuh deposit nol rupiah, dan kalau `0` dan `null`
+             *     sama-sama berarti "tanpa deposit", tidak ada laporan yang bisa
+             *     membedakannya lagi (BR-016).
+             * @example 500000
+             */
+            deposit_amount: number | null;
+            /**
+             * Format: int64
+             * @description `null` berarti tanpa denda telat. Yang hilang cuma tagihannya —
+             *     peringatan terlambat dan pengingatnya tetap jalan (BR-016, BR-041).
+             */
+            late_fee_per_unit: number | null;
+            /** @description `null` berarti tanpa batas bawah, bukan nol (BR-016, BR-021). */
+            min_duration: number | null;
+            /** @description `null` berarti tanpa batas atas. `max < min` ditolak database. */
+            max_duration: number | null;
+            /**
+             * @description Jeda wajib sesudah `end_at` sebelum unit yang sama bisa disewa lagi
+             *     (BR-015). **Satu-satunya field opsional di sini yang tidak boleh kosong:**
+             *     `end_at + NULL` menghasilkan NULL, dan rentang tak berbatas ke atas akan
+             *     bentrok dengan seluruh booking masa depan unit itu. "Tanpa jeda" sudah
+             *     persis sama dengan `0`.
+             * @default 0
+             * @example 120
+             */
+            buffer_minutes: number;
+            /**
+             * @description Tidak ikut yang boleh `null`, walau BR-016 mendaftarnya di tabel yang sama:
+             *     boolean bernilai `NULL` cuma menambah keadaan ketiga yang tidak berarti apa
+             *     pun. "Tidak wajib" sudah persis sama dengan `false` (BR-085).
+             * @default false
+             */
+            requires_id_verification: boolean;
+            status: components["schemas"]["ResourceStatus"];
+            /**
+             * @description Unit `active` yang dimiliki jenis barang ini. Dihitung server. Nol berarti
+             *     barang ini tidak akan pernah muncul di pencarian ketersediaan, berapa pun
+             *     statusnya sendiri (BR-010) — dan layar katalog wajib mengatakannya.
+             */
+            unit_count: number;
+        };
+        /**
+         * @description `pricing_unit` **sengaja tidak ada di sini** dan tidak akan pernah ada:
+         *     server mengisinya dari preset pemiliknya (BR-017). Begitu juga `id`, `owner_id`,
+         *     dan `unit_count`.
+         */
+        ResourceCreate: {
+            name: string;
+            category?: string;
+            /** Format: int64 */
+            base_price: number;
+            /** Format: int64 */
+            deposit_amount?: number | null;
+            /** Format: int64 */
+            late_fee_per_unit?: number | null;
+            min_duration?: number | null;
+            max_duration?: number | null;
+            /** @default 0 */
+            buffer_minutes: number;
+            /** @default false */
+            requires_id_verification: boolean;
+        };
+        /**
+         * @description Semua field opsional, dan key yang absen membiarkan nilainya apa adanya.
+         *
+         *     **Untuk keempat nominal, `null` eksplisit mencabut nilainya** — itu satu-satunya
+         *     caranya, dan itu pengecualian yang disengaja terhadap aturan umum "`null`
+         *     eksplisit adalah `422`" yang berlaku untuk field yang dikelola server
+         *     (`04-api-spec.md` §3.2). `buffer_minutes` tidak ikut: ia `NOT NULL`.
+         */
+        ResourceUpdate: {
+            name?: string;
+            category?: string | null;
+            /** Format: int64 */
+            base_price?: number;
+            /** Format: int64 */
+            deposit_amount?: number | null;
+            /** Format: int64 */
+            late_fee_per_unit?: number | null;
+            min_duration?: number | null;
+            max_duration?: number | null;
+            buffer_minutes?: number;
+            requires_id_verification?: boolean;
+            status?: components["schemas"]["ResourceStatus"];
+        };
+        ResourceUpdated: components["schemas"]["Resource"] & {
+            /**
+             * @description Booking berjalan yang **tetap memakai harga lama**, karena harga
+             *     di-snapshot saat booking dibuat dan tidak pernah dibaca ulang (BR-014).
+             *     Ia ada supaya pemilik yang menaikkan harga tahu persis berapa banyak
+             *     yang tidak ikut naik, tanpa menebak.
+             *
+             *     **Selalu `0` sampai `S1-022` membuat tabel `bookings`.** Bentuk
+             *     responsnya mendarat sekarang supaya layarnya ditulis sekali; yang
+             *     menyusul cuma isi query-nya.
+             */
+            active_bookings: number;
+        };
+        /**
+         * @description Barang fisiknya. Tiga Avanza adalah satu `Resource` dan tiga baris di sini,
+         *     dan kalender menampilkan tiga lajur terpisah.
+         */
+        ResourceUnit: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            resource_id: string;
+            /**
+             * @description Plat nomor atau nomor seri — yang dipakai operator mengenali barangnya
+             *     secara fisik. Unik per usaha, bukan global: dua rental boleh sama-sama
+             *     punya `B 1234 XY` (BR-011).
+             *
+             *     **Tidak pernah muncul di permukaan publik** (BR-025).
+             * @example B 1234 XY
+             */
+            code: string;
+            /**
+             * @description Nama panggilan, buat dibacakan lewat telepon.
+             * @example Avanza Putih
+             */
+            label: string | null;
+            status: components["schemas"]["UnitStatus"];
+            /**
+             * Format: int64
+             * @description Odometer atau jam pakai terakhir. Biasanya diisi serah-terima (`S1-035`);
+             *     di sini supaya unit baru bisa mulai dari angka yang benar.
+             */
+            meter_value: number | null;
+            condition_notes: string | null;
+        };
+        UnitCreate: {
+            code: string;
+            label?: string;
+            /** Format: int64 */
+            meter_value?: number | null;
+            condition_notes?: string;
+        };
+        /**
+         * @description Semua field opsional. `resource_id` tidak ada di sini — memindahkan unit ke
+         *     jenis barang lain akan membuat snapshot booking lama menunjuk jenis yang tidak
+         *     pernah disewa (BR-014), dan itu perubahan kontrak, bukan satu field.
+         */
+        UnitUpdate: {
+            code?: string;
+            label?: string | null;
+            status?: components["schemas"]["UnitStatus"];
+            /** Format: int64 */
+            meter_value?: number | null;
+            condition_notes?: string | null;
+        };
+        UnitUpdated: components["schemas"]["ResourceUnit"] & {
+            warning: components["schemas"]["UnitWarning"];
+        };
+        /**
+         * @description Apa yang terdampak oleh perubahan ini. Ia **peringatan, bukan penolakan**:
+         *     barisnya sudah berubah waktu badan ini dibaca (BR-013).
+         */
+        UnitWarning: {
+            /**
+             * @description Booking yang sudah ada untuk unit ini dan **tidak** dibatalkan maupun
+             *     dihapus. Pemilik yang memutuskan apa yang terjadi pada masing-masing.
+             *
+             *     **Selalu kosong sampai `S1-022` membuat tabel `bookings`.**
+             */
+            affected_bookings: components["schemas"]["AffectedBooking"][];
+        };
+        AffectedBooking: {
+            /** @example SWN-0043 */
+            code: string;
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            end_at: string;
+            status: string;
         };
         /**
          * @description Kode error generik yang dipakai setiap endpoint sebelum sampai ke aturan bisnisnya.
@@ -1061,6 +1441,241 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    listResources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jenis barang di usaha ini. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resource"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Jenis barang terbit. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resource"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jenis barang itu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resource"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jenis barang terhapus. Barisnya tetap ada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Jenis barang sesudah diubah, beserta dampaknya ke booking. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceUpdated"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    listUnits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unit fisik jenis barang itu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceUnit"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitCreate"];
+            };
+        };
+        responses: {
+            /** @description Unit terbit. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceUnit"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    deleteUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unit terhapus. Barisnya tetap ada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitUpdate"];
+            };
+        };
+        responses: {
+            /** @description Unit sesudah diubah, beserta peringatannya. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitUpdated"];
                 };
             };
             401: components["responses"]["Unauthorized"];

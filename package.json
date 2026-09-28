@@ -20,7 +20,7 @@
     "@types/jest": "^25.2.3",
     "@types/react-dom": "^18.0.6",
     "apexcharts": "^3.35.2",
-    "framer-motion": "^4.1.17",
+    "framer-motion": "^11.18.2",
     "next": "^15.1.4",
     "openapi-fetch": "^0.17.0",
     "react": "^19.0.0-rc.1",
