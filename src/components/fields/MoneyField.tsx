@@ -83,11 +83,10 @@ export function MoneyField({
         </InputLeftAddon>
         <Input
           id={inputId}
-          variant="auth"
-          fontSize="sm"
-          fontWeight="500"
           inputMode="numeric"
-          placeholder={nullable ? 'Kosongkan kalau tidak berlaku' : '0'}
+          // A dash, not a sentence: `emptyMeans` below already says what empty
+          // means, and saying it twice per field is most of the form's noise.
+          placeholder={nullable ? '—' : '0'}
           borderRadius="0 16px 16px 0"
           isDisabled={isDisabled}
           value={raw}

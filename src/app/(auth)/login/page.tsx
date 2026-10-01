@@ -111,15 +111,11 @@ export default function Login() {
             </FormLabel>
             <Input
               isRequired
-              variant="auth"
-              fontSize="sm"
               type="email"
               name="email"
               autoComplete="username"
               placeholder="budi@contoh.id"
               mb="24px"
-              fontWeight="500"
-              size="lg"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />

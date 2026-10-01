@@ -573,6 +573,7 @@ export interface components {
             id: string;
             /** @example Rental Budi */
             name: string;
+            business_type: components["schemas"]["BusinessType"];
             /**
              * @description Label subdomain usaha ini — `rentalbudi` berarti `rentalbudi.sewain.id` (BR-025).
              *
@@ -645,6 +646,30 @@ export interface components {
              * @default true
              */
             notify_overdue_reminder: boolean;
+            /**
+             * @description Nomor WhatsApp usaha, satu-satunya field profil yang dibaca mesin bukan mata:
+             *     halaman publik menjadikannya tautan `wa.me`, jadi formatnya ditegakkan
+             *     database. Nomor berformat bebas menghasilkan tautan mati di halaman yang
+             *     seluruh gunanya menghubungi pemilik (BR-096).
+             *
+             *     **`null` adalah keadaan awal setiap usaha** — pendaftaran cuma menanyakan
+             *     empat hal (BR-005).
+             * @example +628123456789
+             */
+            whatsapp: string | null;
+            /**
+             * @description Alamat usaha, dan **lokasi ambil default** kecuali juragan menulis lain di
+             *     syarat sewa (BR-095, BR-096).
+             * @example Jl. Kaliurang KM 5 No. 12, Sleman
+             */
+            address: string | null;
+            /**
+             * @description Teks bebas, dan sengaja tidak terstruktur: jam buka rental Indonesia penuh
+             *     pengecualian, dan memaksanya jadi tujuh baris buka/tutup membuat juragan
+             *     mengisi data yang salah atau tidak mengisi sama sekali (BR-096).
+             * @example Senin–Sabtu 08.00–20.00, Minggu janjian dulu
+             */
+            operating_hours: string | null;
         };
         /**
          * @description Semua field opsional. Key yang absen dibiarkan apa adanya; `null` eksplisit adalah
@@ -661,6 +686,30 @@ export interface components {
             notify_pickup_reminder?: boolean;
             notify_return_reminder?: boolean;
             notify_overdue_reminder?: boolean;
+            /**
+             * @description Nomor WhatsApp usaha, satu-satunya field profil yang dibaca mesin bukan mata:
+             *     halaman publik menjadikannya tautan `wa.me`, jadi formatnya ditegakkan
+             *     database. Nomor berformat bebas menghasilkan tautan mati di halaman yang
+             *     seluruh gunanya menghubungi pemilik (BR-096).
+             *
+             *     **`null` adalah keadaan awal setiap usaha** — pendaftaran cuma menanyakan
+             *     empat hal (BR-005).
+             * @example +628123456789
+             */
+            whatsapp?: string | null;
+            /**
+             * @description Alamat usaha, dan **lokasi ambil default** kecuali juragan menulis lain di
+             *     syarat sewa (BR-095, BR-096).
+             * @example Jl. Kaliurang KM 5 No. 12, Sleman
+             */
+            address?: string | null;
+            /**
+             * @description Teks bebas, dan sengaja tidak terstruktur: jam buka rental Indonesia penuh
+             *     pengecualian, dan memaksanya jadi tujuh baris buka/tutup membuat juragan
+             *     mengisi data yang salah atau tidak mengisi sama sekali (BR-096).
+             * @example Senin–Sabtu 08.00–20.00, Minggu janjian dulu
+             */
+            operating_hours?: string | null;
         };
         /**
          * @description Akun di usaha ini. Tidak pernah memuat `password_hash` maupun `owner_id` — yang
@@ -805,6 +854,35 @@ export interface components {
              *     statusnya sendiri (BR-010) — dan layar katalog wajib mengatakannya.
              */
             unit_count: number;
+            /**
+             * @description Fitur dan perlengkapan, ditulis juragan (BR-095). Dirender halaman publik
+             *     `S1-060`; sampai itu ia tersimpan dan tervalidasi tapi belum dibaca siapa pun.
+             *
+             *     Menerima **markdown minimal** — tebal, miring, daftar berbutir; bukan HTML,
+             *     dan tidak lebih dari ketiganya. `maxLength` menghitung penandanya juga, jadi
+             *     `**AC dingin**` memakan 15 karakter, bukan 9. Berlaku sama untuk ketiga
+             *     `terms_*` di bawah (BR-095).
+             * @example AC dingin, charger HP, audio Bluetooth, kartu e-Toll.
+             */
+            description: string | null;
+            /** @description Belum termasuk. Kosong = bagian ini tidak ditampilkan. Markdown minimal (BR-095). */
+            terms_excludes: string | null;
+            /** @description Syarat sewa — dokumen, jaminan, usia, wilayah. Markdown minimal (BR-095). */
+            terms_requirements: string | null;
+            /**
+             * @description Pembatalan & perubahan. **Hanya untuk yang tidak dijalankan sistem** —
+             *     refund dan reschedule dieksekusi manual oleh juragan di fase 1. Tenggat
+             *     bayar, denda telat, dan toleransi no-show TIDAK ditulis di sini: server
+             *     merakitnya dari kolomnya sendiri, dan mengetiknya ulang membuat halaman
+             *     publik berbohong begitu knob-nya berubah. Markdown minimal (BR-095).
+             */
+            terms_cancellation: string | null;
+            /**
+             * @description Spek kendaraan, atau `null` untuk preset yang bukan `vehicle_rental`
+             *     (BR-094). Bersarang, bukan diratakan: pembelahan generik-vs-kendaraan
+             *     adalah inti keputusannya.
+             */
+            vehicle: components["schemas"]["VehicleSpec"] | null;
         };
         /**
          * @description `pricing_unit` **sengaja tidak ada di sini** dan tidak akan pernah ada:
@@ -826,6 +904,11 @@ export interface components {
             buffer_minutes: number;
             /** @default false */
             requires_id_verification: boolean;
+            description?: string | null;
+            terms_excludes?: string | null;
+            terms_requirements?: string | null;
+            terms_cancellation?: string | null;
+            vehicle?: components["schemas"]["VehicleSpecInput"];
         };
         /**
          * @description Semua field opsional, dan key yang absen membiarkan nilainya apa adanya.
@@ -849,6 +932,11 @@ export interface components {
             buffer_minutes?: number;
             requires_id_verification?: boolean;
             status?: components["schemas"]["ResourceStatus"];
+            description?: string | null;
+            terms_excludes?: string | null;
+            terms_requirements?: string | null;
+            terms_cancellation?: string | null;
+            vehicle?: components["schemas"]["VehicleSpecUpdate"];
         };
         ResourceUpdated: components["schemas"]["Resource"] & {
             /**
@@ -894,6 +982,12 @@ export interface components {
              */
             meter_value: number | null;
             condition_notes: string | null;
+            /**
+             * @description Detail kendaraan unit ini, atau `null` untuk preset yang bukan
+             *     `vehicle_rental` (BR-094). Tidak satu pun field di dalamnya pernah keluar
+             *     ke permukaan publik.
+             */
+            vehicle: components["schemas"]["VehicleUnitDetail"] | null;
         };
         UnitCreate: {
             code: string;
@@ -901,6 +995,7 @@ export interface components {
             /** Format: int64 */
             meter_value?: number | null;
             condition_notes?: string;
+            vehicle?: components["schemas"]["VehicleUnitDetailInput"];
         };
         /**
          * @description Semua field opsional. `resource_id` tidak ada di sini — memindahkan unit ke
@@ -914,6 +1009,7 @@ export interface components {
             /** Format: int64 */
             meter_value?: number | null;
             condition_notes?: string | null;
+            vehicle?: components["schemas"]["VehicleUnitDetailInput"];
         };
         UnitUpdated: components["schemas"]["ResourceUnit"] & {
             warning: components["schemas"]["UnitWarning"];
@@ -939,6 +1035,95 @@ export interface components {
             /** Format: date-time */
             end_at: string;
             status: string;
+        };
+        /**
+         * @description Mobil atau motor (BR-094). **Dipilih per resource, bukan per usaha** — rental
+         *     yang menyewakan keduanya harus muat di satu akun, jadi preset tetap satu
+         *     (`vehicle_rental`) dan jenisnya ditanyakan di sini.
+         *
+         *     **Dikunci sesudah resource dibuat**, dan alasannya mekanis: CHECK
+         *     `(vehicle_type = 'car') = (seats IS NOT NULL)` membuat motor→mobil melanggar
+         *     constraint kecuali kursinya ikut diisi di transaksi yang sama. Karena itu ia
+         *     tidak ada di `VehicleSpecUpdate`.
+         * @enum {string}
+         */
+        VehicleType: "car" | "motorcycle";
+        /**
+         * @description `clutch` (kopling) **hanya ada di motor**, ditegakkan database (BR-094).
+         * @enum {string}
+         */
+        Transmission: "manual" | "automatic" | "clutch";
+        /**
+         * @description `diesel` **hanya ada di mobil**, ditegakkan database (BR-094).
+         * @enum {string}
+         */
+        Fuel: "gasoline" | "diesel" | "hybrid" | "electric";
+        /**
+         * @description Spek kendaraan untuk satu jenis barang, satu-ke-satu dengan `Resource`
+         *     (BR-094). Hanya ada pada pemilik berpreset `vehicle_rental`; preset lain
+         *     membawa `vehicle: null`.
+         */
+        VehicleSpec: {
+            vehicle_type: components["schemas"]["VehicleType"];
+            transmission: components["schemas"]["Transmission"];
+            /**
+             * @description **Wajib pada mobil, dilarang pada motor** — satu CHECK berbentuk kesetaraan
+             *     menegakkan dua arah sekaligus. Versi "mobil wajib punya kursi" saja akan
+             *     menerima motor berkursi empat tanpa satu pun test merah.
+             * @example 7
+             */
+            seats: number | null;
+            fuel: components["schemas"]["Fuel"];
+        };
+        VehicleSpecInput: {
+            vehicle_type: components["schemas"]["VehicleType"];
+            transmission: components["schemas"]["Transmission"];
+            seats?: number | null;
+            fuel: components["schemas"]["Fuel"];
+        };
+        /**
+         * @description `vehicle_type` sengaja tidak ada: ia dikunci sesudah resource dibuat (BR-094).
+         *     Juragan yang salah pilih jenis membuat resource baru.
+         */
+        VehicleSpecUpdate: {
+            transmission?: components["schemas"]["Transmission"];
+            seats?: number | null;
+            fuel?: components["schemas"]["Fuel"];
+        };
+        /**
+         * @description Detail kendaraan untuk satu unit fisik (BR-094).
+         *
+         *     **Tidak satu pun field di sini keluar ke permukaan publik.** `resource_units.code`
+         *     adalah plat nomor dan BR-025 sudah melarangnya keluar; pajak dan STNK adalah
+         *     catatan juragan untuk armadanya sendiri.
+         */
+        VehicleUnitDetail: {
+            /**
+             * @description Batas atasnya di database longgar sampai 2100, dan "tahun depan" disempitkan
+             *     aplikasi — predikat itu butuh `now()`, sedangkan CHECK wajib IMMUTABLE.
+             * @example 2021
+             */
+            year: number;
+            /** @example Putih */
+            color: string | null;
+            /**
+             * Format: date
+             * @description Jatuh tempo pajak tahunan. Hanya dilihat juragan.
+             */
+            tax_due_on: string | null;
+            /**
+             * Format: date
+             * @description STNK berlaku sampai. Hanya dilihat juragan.
+             */
+            registration_valid_until: string | null;
+        };
+        VehicleUnitDetailInput: {
+            year: number;
+            color?: string | null;
+            /** Format: date */
+            tax_due_on?: string | null;
+            /** Format: date */
+            registration_valid_until?: string | null;
         };
         /**
          * @description Kode error generik yang dipakai setiap endpoint sebelum sampai ke aturan bisnisnya.

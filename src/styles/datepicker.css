@@ -1,0 +1,120 @@
+/*
+ * Kalender di dalam popover saring & form.
+ *
+ * DI-SCOPE ke .sewain-datepicker dengan sengaja: styles/MiniCalendar.css global
+ * ditulis untuk widget dasbor Horizon (tile 34px, navigasi 18px, lebar 350px),
+ * dan menariknya ke ukuran popover akan ikut mengubah widget itu.
+ *
+ * Dimuat bersama react-calendar lewat LazyCalendar, jadi ia tidak pernah
+ * diunduh oleh yang tidak membuka kalender.
+ */
+
+.sewain-datepicker .react-calendar {
+  width: 300px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Jarak di bawah navigasi; Calendar.css memberi 1em yang terlalu longgar di
+   popover sesempit ini. */
+.sewain-datepicker .react-calendar__navigation {
+  height: 36px;
+  margin-bottom: 10px;
+}
+
+.sewain-datepicker .react-calendar__navigation__label {
+  font-size: 14px !important;
+}
+
+.sewain-datepicker .react-calendar__navigation__prev-button,
+.sewain-datepicker .react-calendar__navigation__next-button {
+  min-width: 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px;
+}
+
+.sewain-datepicker .react-calendar__month-view__weekdays {
+  font-size: 10px;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.sewain-datepicker .react-calendar__month-view__weekdays__weekday {
+  padding: 2px;
+}
+
+/* Mendekati kotak. Tanpa ini tile-nya 54x34 -- lebar-pendek, dan deretan angka
+   di dalamnya terbaca seperti tabel, bukan seperti kalender. */
+.sewain-datepicker .react-calendar__tile {
+  height: 36px !important;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+/*
+ * Sorotan saat rentang sedang ditarik.
+ *
+ * react-calendar SUDAH memasang keempat kelas ini sejak ujung pertama diklik
+ * (shared/utils.js getRangeClassNames). Yang tidak pernah ada adalah gayanya:
+ * satu-satunya aturan --hover bawaan tinggal di Calendar.css, dan tidak ada
+ * satu pun di MiniCalendar.css. Jadi ini bukan fitur baru -- ini gaya untuk
+ * kelas yang selama ini sudah dirender tanpa rupa.
+ */
+.sewain-datepicker .react-calendar__tile {
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--hover {
+  background-color: #f4f7fe;
+  color: #4318ff;
+  border-radius: 0;
+}
+
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--hoverStart {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--hoverEnd {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--hoverBothEnds {
+  border-radius: 8px;
+}
+
+/*
+ * Ujung yang SUDAH dipilih tetap pekat selama rentangnya ditarik.
+ *
+ * Tanpa ini aturan --hover di atas menang atas --rangeStart milik
+ * MiniCalendar.css (ia lebih spesifik dan dimuat belakangan), jadi jangkar yang
+ * barusan diklik ikut pudar jadi warna sorotan -- dan tidak ada lagi yang
+ * menandai dari mana rentangnya mulai.
+ */
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--active,
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--rangeStart,
+.sewain-datepicker .react-calendar--selectRange .react-calendar__tile--rangeEnd {
+  background: #4318ff;
+  color: #fff;
+  border-radius: 8px;
+}
+
+body.chakra-ui-dark .sewain-datepicker .react-calendar--selectRange .react-calendar__tile--active,
+body.chakra-ui-dark .sewain-datepicker .react-calendar--selectRange .react-calendar__tile--rangeStart,
+body.chakra-ui-dark .sewain-datepicker .react-calendar--selectRange .react-calendar__tile--rangeEnd {
+  background: #7551ff;
+  color: #fff;
+}
+
+body.chakra-ui-dark .sewain-datepicker .react-calendar--selectRange .react-calendar__tile--hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #7551ff;
+}
+
+/* Sorotannya INFORMASI, jadi ia tetap; yang dimatikan cuma transisinya. */
+@media (prefers-reduced-motion: reduce) {
+  .sewain-datepicker .react-calendar__tile {
+    transition: none;
+  }
+}

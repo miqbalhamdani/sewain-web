@@ -78,6 +78,29 @@ export const globalStyles = {
       100: "#FAFCFE",
     },
   },
+  // Token semantik: nama peran, bukan nama warna.
+  //
+  // Ada karena empat layar katalog menurunkan pasangan yang sama sendiri-sendiri
+  // lewat useColorModeValue, delapan belas kali, dan dua di antaranya menyimpang:
+  // layar daftar memakai secondaryGray.900 untuk teks utama, layar form memakai
+  // navy.700. Keduanya #1B25xx -- beda satu kanal, praktis tak terlihat -- tapi
+  // itu tetap dua sumber kebenaran untuk satu peran, dan yang berikutnya akan
+  // menambah yang ketiga.
+  //
+  // Dipakai sebagai `color="text.primary"`, tanpa hook, jadi komponen berhenti
+  // tahu soal mode warna sama sekali.
+  semanticTokens: {
+    colors: {
+      "text.primary": { default: "secondaryGray.900", _dark: "white" },
+      // Nilai terangnya sengaja tidak diubah supaya perapian layout ini tidak
+      // ikut menggeser rupa. Yang diperbaiki: dulu ia literal 'gray.400' di
+      // sembilan berkas dan TIDAK ikut berubah di mode gelap sama sekali.
+      "text.secondary": { default: "gray.400", _dark: "whiteAlpha.700" },
+      "border.subtle": { default: "gray.200", _dark: "whiteAlpha.100" },
+      "surface.hover": { default: "secondaryGray.300", _dark: "whiteAlpha.50" },
+      "surface.sunken": { default: "secondaryGray.300", _dark: "whiteAlpha.100" },
+    },
+  },
   styles: {
     global: (props: StyleFunctionProps) => ({
       body: {
@@ -86,8 +109,12 @@ export const globalStyles = {
         fontFamily: "DM Sans",
         letterSpacing: "-0.5px",
       },
+      // Selektor elemen global, dan ia cuma kena <input> -- bukan <textarea>
+      // maupun <select>. Tanpa mode(), ketiga tipe field itu mengatakan hal
+      // yang berbeda di mode gelap: teks input nyaris hitam di atas latar
+      // gelap, dua lainnya putih.
       input: {
-        color: "gray.700",
+        color: mode("gray.700", "white")(props),
       },
       html: {
         fontFamily: "DM Sans",

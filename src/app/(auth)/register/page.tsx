@@ -152,12 +152,8 @@ export default function Register() {
             </FormLabel>
             <Input
               isRequired
-              variant="auth"
-              fontSize="sm"
               autoComplete="organization"
               placeholder="Rental Budi"
-              size="lg"
-              fontWeight="500"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
             />
@@ -194,13 +190,9 @@ export default function Register() {
             </FormLabel>
             <Input
               isRequired
-              variant="auth"
-              fontSize="sm"
               type="email"
               autoComplete="email"
               placeholder="budi@contoh.id"
-              size="lg"
-              fontWeight="500"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />

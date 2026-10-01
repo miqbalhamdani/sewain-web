@@ -8,6 +8,7 @@ import AppWrappers from 'app/AppWrappers'
 import Footer from 'components/footer/Footer'
 import Navbar from 'components/navbar/NavbarAdmin'
 import Sidebar from 'components/sidebar/Sidebar'
+import { PageHeaderProvider } from 'contexts/PageHeaderContext'
 import { useSession } from 'contexts/SessionContext'
 import { SidebarContext } from 'contexts/SidebarContext'
 import { LOGIN_PATH, VERIFY_PATH } from 'lib/api/client'
@@ -59,8 +60,6 @@ function AppLayoutInner(props: DashboardLayoutProps) {
   const [fixed] = useState(false)
   const [toggleSidebar, setToggleSidebar] = useState(false)
   const { onOpen } = useDisclosure()
-  const { owner } = useSession()
-
   const bg = useColorModeValue('secondaryGray.300', 'navy.900')
 
   return (
@@ -83,14 +82,18 @@ function AppLayoutInner(props: DashboardLayoutProps) {
         >
           <Portal>
             <Box>
-              {/* The business name comes from /me, never from decoding the
-                  access token in the browser: that token is for the server,
-                  and parsing it here makes two sources of truth (BR-004). */}
-              <Navbar onOpen={onOpen} brandText={owner?.name ?? ''} secondary={false} fixed={fixed} {...rest} />
+              {/* Judulnya tidak lagi dioper dari sini: navbar membacanya dari
+                  PageHeaderContext, karena layout tidak tahu halaman apa yang
+                  sedang dirender di dalamnya. Nama usaha tetap dibaca dari /me,
+                  dan tempatnya di menu avatar (BR-004). */}
+              <Navbar onOpen={onOpen} secondary={false} fixed={fixed} {...rest} />
             </Box>
           </Portal>
 
-          <Box mx="auto" p={{ base: '20px', md: '30px' }} pe="20px" minH="100vh" pt="50px">
+          {/* `pe` dibuang: ia datang sesudah `p`, jadi di md+ konten punya 30px
+              di kiri dan 20px di kanan -- asimetri yang kelihatan di setiap
+              halaman backoffice, bukan cuma katalog. */}
+          <Box mx="auto" p={{ base: '20px', md: '30px' }} minH="100vh" pt="50px">
             {children}
           </Box>
           {/* Spacing belongs to the parent: the footer sets none of its own. */}
@@ -109,7 +112,11 @@ export default function AppLayout(props: DashboardLayoutProps) {
   return (
     <AppWrappers>
       <Guards>
-        <AppLayoutInner {...props} />
+        {/* Di luar AppLayoutInner supaya navbar DAN halaman sama-sama membaca
+            store yang sama. */}
+        <PageHeaderProvider>
+          <AppLayoutInner {...props} />
+        </PageHeaderProvider>
       </Guards>
     </AppWrappers>
   )

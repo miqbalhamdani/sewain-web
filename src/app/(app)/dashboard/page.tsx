@@ -1,7 +1,8 @@
 'use client'
 
-import { Box, Card, Heading, SimpleGrid, Text, useColorModeValue } from '@chakra-ui/react'
+import { Card, SimpleGrid, Text } from '@chakra-ui/react'
 
+import { PageShell } from 'components/layout/PageShell'
 import { useSession } from 'contexts/SessionContext'
 
 /**
@@ -17,40 +18,34 @@ import { useSession } from 'contexts/SessionContext'
  * that yet.
  */
 export default function Dashboard() {
-  const { user, owner } = useSession()
-  const textColor = useColorModeValue('secondaryGray.900', 'white')
-  const textColorSecondary = 'gray.400'
+  const { user } = useSession()
 
   return (
-    <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
-      <Heading color={textColor} fontSize="28px" mb="8px">
-        {owner?.name}
-      </Heading>
-      <Text color={textColorSecondary} mb="28px">
-        Masuk sebagai {user?.name} · {user?.role === 'owner' ? 'Pemilik' : 'Operator'}
-      </Text>
-
+    <PageShell
+      title="Dashboard"
+      subtitle={`Masuk sebagai ${user?.name ?? ''} · ${user?.role === 'owner' ? 'Pemilik' : 'Operator'}`}
+    >
       <SimpleGrid columns={{ base: 1, md: 2 }} gap="20px">
         <Card p="20px">
-          <Text fontWeight="700" color={textColor} mb="6px">
+          <Text fontWeight="700" color="text.primary" mb="6px">
             Langkah berikutnya
           </Text>
-          <Text color={textColorSecondary} fontSize="sm">
+          <Text color="text.secondary" fontSize="sm">
             Katalog, unit, dan booking pertama datang di M1–M2. Daftar langkah yang dihitung dari
             data — bukan dari kolom progres — adalah `S1-066`.
           </Text>
         </Card>
 
         <Card p="20px">
-          <Text fontWeight="700" color={textColor} mb="6px">
+          <Text fontWeight="700" color="text.primary" mb="6px">
             Pengaturan usaha
           </Text>
-          <Text color={textColorSecondary} fontSize="sm">
+          <Text color="text.secondary" fontSize="sm">
             Prefix kode booking, tenggat bayar, dan toleransi no-show sudah bisa diatur lewat API
             (`S1-009`). Layarnya menyusul di `S1-066`.
           </Text>
         </Card>
       </SimpleGrid>
-    </Box>
+    </PageShell>
   )
 }

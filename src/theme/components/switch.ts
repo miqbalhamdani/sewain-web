@@ -18,8 +18,14 @@ export const switchStyles = {
           h: "20px",
           p: "2px",
           ps: "2px",
-          _focus: {
-            boxShadow: "none",
+          // Chakra memberi track cincin fokus; template Horizon mencabutnya.
+          // Itu bukan pilihan gaya melainkan regresi aksesibilitas: sakelar
+          // "Wajib verifikasi identitas" di form resource tidak bisa dilihat
+          // pemakainya saat di-Tab. _focusVisible, bukan _focus, supaya
+          // cincinnya cuma muncul untuk keyboard -- klik mouse tidak
+          // meninggalkan cincin yang menggantung.
+          _focusVisible: {
+            boxShadow: "outline",
           },
         },
       },

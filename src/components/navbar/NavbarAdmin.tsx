@@ -2,17 +2,21 @@
 // Chakra Imports
 import {
   Box,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
   Flex,
-  Link,
+  Heading,
   Text,
   useColorModeValue
 } from '@chakra-ui/react'
+import NextLink from 'next/link'
 import { useState, useEffect } from 'react'
 import AdminNavbarLinks from 'components/navbar/NavbarLinksAdmin'
+import { usePageHeader } from 'contexts/PageHeaderContext'
 
 export default function AdminNavbar (props: {
   secondary: boolean
-  brandText: string
   fixed: boolean
   onOpen: (...args: any[]) => any
 }) {
@@ -29,7 +33,13 @@ export default function AdminNavbar (props: {
     }
   })
 
-  const { secondary, brandText } = props
+  const { secondary } = props
+
+  // Judulnya datang dari halaman yang sedang dirender, bukan dari prop: navbar
+  // ini di dalam <Portal> dan layout tidak tahu halaman apa yang ada di
+  // dalamnya. Sebelumnya di sini nama usaha, yang sama di setiap halaman dan
+  // karena itu tidak memberi tahu apa pun tentang di mana juragan berada.
+  const header = usePageHeader()
 
   // Here are all the props that may change depending on navbar's type or state.(secondary, variant, scrolled)
   let mainText = useColorModeValue('navy.700', 'white')
@@ -106,27 +116,32 @@ export default function AdminNavbar (props: {
         alignItems={{ xl: 'center' }}
         mb={gap}
       >
-        <Box mb={{ sm: '8px', md: '0px' }}>
-          {/* The business name, read from /me by the layout (BR-004). */}
-          <Link
-            color={mainText}
-            href='#'
-            bg='inherit'
-            borderRadius='inherit'
-            fontWeight='bold'
-            fontSize='34px'
-            _hover={{ color: { mainText } }}
-            _active={{
-              bg: 'inherit',
-              transform: 'none',
-              borderColor: 'transparent'
-            }}
-            _focus={{
-              boxShadow: 'none'
-            }}
-          >
-            {brandText}
-          </Link>
+        <Box mb={{ sm: '8px', md: '0px' }} minW='0'>
+          {/* text.secondary, bukan `secondaryText` milik template: yang terakhir
+              itu useColorModeValue('gray.700','white'), jadi di mode gelap jejak
+              dan judul sama-sama putih dan jejaknya berhenti terbaca sebagai
+              yang lebih kecil. */}
+          <Breadcrumb fontSize='sm' color='text.secondary' mb='4px' separator='/'>
+            {header?.breadcrumb.map((crumb, i) => (
+              // Kunci dari posisi, bukan label: jejak adalah daftar berurut yang
+              // tidak pernah disusun ulang, dan dua segmen bisa berlabel sama
+              // selama salah satunya masih memuat.
+              <BreadcrumbItem key={i} isCurrentPage={crumb.href === undefined}>
+                {crumb.href === undefined ? (
+                  <Text>{crumb.label}</Text>
+                ) : (
+                  <BreadcrumbLink as={NextLink} href={crumb.href}>
+                    {crumb.label}
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            ))}
+          </Breadcrumb>
+          {/* Satu-satunya h1 aplikasi ini. Dulu <Link href='#'> yang tidak
+              menuju ke mana-mana, dan isinya nama usaha. */}
+          <Heading as='h1' color={mainText} fontWeight='bold' fontSize='34px' noOfLines={1}>
+            {header?.title ?? ''}
+          </Heading>
         </Box>
         <Box ms='auto' w={{ sm: '100%', md: 'unset' }}>
           <AdminNavbarLinks secondary={props.secondary} />

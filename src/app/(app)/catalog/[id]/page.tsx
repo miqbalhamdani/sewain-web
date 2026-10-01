@@ -6,11 +6,9 @@ import {
   Button,
   Card,
   Flex,
-  Heading,
   SimpleGrid,
   Spinner,
   Text,
-  useColorModeValue,
 } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -21,7 +19,30 @@ import { useCan } from 'contexts/SessionContext'
 import { api, fieldErrors, problemCode } from 'lib/api/client'
 import { formatPrice } from 'lib/format/money'
 
+import { FormSection } from 'components/fields/FormSection'
+import { EmptyState } from 'components/layout/EmptyState'
+import { PageShell } from 'components/layout/PageShell'
+
 import { ResourceForm, draftOf, localiseErrors, type ResourceDraft } from '../ResourceForm'
+
+/** Jejak yang sama untuk ketiga keadaan layar ini: muat, tidak ketemu, dan isi. */
+// Labelnya 'Barang', sama persis dengan yang tertulis di sidebar (routes.tsx):
+// jejak yang menyebut modul dengan kata lain daripada tombol yang membawa ke
+// sana membuat juragan mengira itu dua tempat.
+const KATALOG = [{ label: 'Barang', href: '/catalog' }]
+
+/** Teks kosong berarti tidak ada, dan `null` yang mengatakannya (BR-095). */
+function orNull(v: string): string | null {
+  return v.trim() === '' ? null : v
+}
+
+/** Satuan harga dalam bahasa juragan, untuk kalimat otomatis 5a (BR-095). */
+const UNIT_LABEL: Record<string, string> = {
+  hour: 'jam',
+  day: 'hari',
+  week: 'minggu',
+  month: 'bulan',
+}
 
 /**
  * One kind of thing: read for an operator, editable for an owner.  (S1-018)
@@ -38,8 +59,6 @@ export default function ResourcePage() {
   const canWrite = useCan('resources:write')
   const canSeePrices = useCan('pricing:write')
 
-  const textColor = useColorModeValue('secondaryGray.900', 'white')
-  const textColorSecondary = 'gray.400'
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
@@ -61,7 +80,6 @@ export default function ResourcePage() {
         params: { path: { id } },
         body: {
           name: draft.name,
-          category: draft.category === '' ? null : draft.category,
           base_price: draft.base_price ?? 0,
           // All four sent every time, value or null. This screen shows all of
           // them, so what it submits is what the resource should have --
@@ -73,6 +91,23 @@ export default function ResourcePage() {
           buffer_minutes: draft.buffer_minutes ?? 0,
           requires_id_verification: draft.requires_id_verification,
           status: draft.status,
+
+          description: orNull(draft.description),
+          terms_excludes: orNull(draft.terms_excludes),
+          terms_requirements: orNull(draft.terms_requirements),
+          terms_cancellation: orNull(draft.terms_cancellation),
+
+          // `vehicle_type` sengaja tidak ikut: ia dikunci sesudah resource
+          // dibuat, dan skema PATCH memang tidak punya field-nya (BR-094).
+          ...(draft.vehicle
+            ? {
+                vehicle: {
+                  transmission: draft.vehicle.transmission,
+                  seats: draft.vehicle.seats,
+                  fuel: draft.vehicle.fuel,
+                },
+              }
+            : {}),
         },
       })
       if (error) throw error
@@ -109,46 +144,44 @@ export default function ResourcePage() {
 
   if (isPending) {
     return (
-      <Flex pt="160px" justify="center">
-        <Spinner size="lg" color="brand.500" thickness="3px" />
-      </Flex>
+      <PageShell width="form-aside" title="Barang" breadcrumb={KATALOG}>
+        <Flex py="60px" justify="center">
+          <Spinner size="lg" color="brand.500" thickness="3px" />
+        </Flex>
+      </PageShell>
     )
   }
 
   if (!resource) {
     return (
-      <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
-        <Card p="24px">
-          <Text color={textColor}>Barang ini tidak ada di usaha kamu.</Text>
-          <Button as={Link} href="/catalog" variant="brand" mt="16px" w="fit-content">
-            Kembali ke daftar barang
-          </Button>
-        </Card>
-      </Box>
+      <PageShell width="form-aside" title="Barang tidak ditemukan" breadcrumb={KATALOG}>
+        <EmptyState
+          title="Barang ini tidak ada di usaha kamu"
+          description="Mungkin sudah dihapus, atau tautannya milik usaha lain."
+          action={
+            <Button as={Link} href="/catalog" variant="brand" mx="auto">
+              Kembali ke daftar barang
+            </Button>
+          }
+        />
+      </PageShell>
     )
   }
 
   return (
-    <Box pt={{ base: '130px', md: '80px', xl: '80px' }} maxW="880px">
-      <Flex align="center" justify="space-between" mb="24px" gap="16px" wrap="wrap">
-        <Box>
-          <Heading color={textColor} fontSize="28px" mb="4px">
-            {resource.name}
-          </Heading>
-          <Text color={textColorSecondary} fontSize="sm">
-            {resource.unit_count === 0
-              ? 'Belum ada unit aktif — barang ini belum bisa dibooking.'
-              : `${resource.unit_count} unit aktif`}
-          </Text>
-        </Box>
-        <Button as={Link} href={`/catalog/${id}/units`} variant="outline" h="46px">
-          Kelola unit
-        </Button>
-      </Flex>
-
+    <PageShell
+      width="form-aside"
+      breadcrumb={KATALOG}
+      title={resource.name}
+      subtitle={
+        resource.unit_count === 0
+          ? 'Belum ada unit aktif — barang ini belum bisa dibooking.'
+          : `${resource.unit_count} unit aktif`
+      }
+    >
       {saved !== '' && (
-        <Card p="16px" mb="20px">
-          <Text color={textColor} fontSize="sm">
+        <Card mb="20px" role="status">
+          <Text color="text.primary" fontSize="sm">
             {saved}
           </Text>
         </Card>
@@ -156,7 +189,9 @@ export default function ResourcePage() {
 
       {canWrite ? (
         <ResourceForm
+          aside={<Kelengkapan id={id} unitCount={resource.unit_count} />}
           initial={draftOf(resource)}
+          unitLabel={UNIT_LABEL[resource.pricing_unit]}
           submitLabel="Simpan perubahan"
           busy={update.isPending}
           errors={errors}
@@ -166,7 +201,7 @@ export default function ResourcePage() {
           onCancel={() => router.push('/catalog')}
         />
       ) : (
-        <Card p="24px">
+        <FormSection title="Rincian">
           <SimpleGrid columns={{ base: 1, md: 2 }} gap="16px">
             <Detail label="Kategori" value={resource.category ?? '—'} />
             {/* Price, deposit and late fee are absent entirely for a role that
@@ -187,7 +222,7 @@ export default function ResourcePage() {
               value={resource.requires_id_verification ? 'Wajib' : 'Tidak wajib'}
             />
             <Box>
-              <Text fontSize="xs" color={textColorSecondary} mb="4px">
+              <Text fontSize="xs" color="text.secondary" mb="4px">
                 Status
               </Text>
               <Badge colorScheme={resource.status === 'active' ? 'green' : 'gray'}>
@@ -195,20 +230,56 @@ export default function ResourcePage() {
               </Badge>
             </Box>
           </SimpleGrid>
-        </Card>
+        </FormSection>
       )}
-    </Box>
+    </PageShell>
+  )
+}
+
+/**
+ * Barang ini bisa dibooking atau belum, dan tombol yang memperbaikinya.
+ *
+ * Satu kartu, bukan dua: kartu kedua yang isinya cuma tombol adalah permukaan
+ * kedua untuk satu pekerjaan. Dan BR-010 yang dijawab di sini -- barang tanpa
+ * unit `active` tidak pernah muncul di pencarian ketersediaan, yang dari layar
+ * ini kelihatan seperti barangnya hilang.
+ */
+function Kelengkapan({ id, unitCount }: { id: string; unitCount: number }) {
+  const siap = unitCount > 0
+
+  return (
+    <Card variant="section" p="20px">
+      <Text fontSize="sm" fontWeight="700" color="text.primary" mb="10px">
+        Kelengkapan
+      </Text>
+
+      <Flex align="flex-start" gap="8px" mb="16px">
+        {/* Bukan warna saja: ikon dan kalimatnya masing-masing sudah cukup
+            membedakan siap dari belum. */}
+        <Text as="span" aria-hidden="true" color={siap ? 'green.500' : 'orange.500'}>
+          {siap ? '✓' : '!'}
+        </Text>
+        <Text fontSize="xs" color="text.secondary">
+          {siap
+            ? `${unitCount} unit aktif — barang ini bisa dibooking.`
+            : 'Belum ada unit aktif. Selama kosong, barang ini tidak muncul di pencarian ketersediaan.'}
+        </Text>
+      </Flex>
+
+      <Button as={Link} href={`/catalog/${id}/units`} variant="outline" w="100%">
+        Kelola unit
+      </Button>
+    </Card>
   )
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  const textColor = useColorModeValue('secondaryGray.900', 'white')
   return (
     <Box>
-      <Text fontSize="xs" color="gray.400" mb="4px">
+      <Text fontSize="xs" color="text.secondary" mb="4px">
         {label}
       </Text>
-      <Text fontSize="sm" color={textColor} fontWeight="500">
+      <Text fontSize="sm" color="text.primary" fontWeight="500">
         {value}
       </Text>
     </Box>

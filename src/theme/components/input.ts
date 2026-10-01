@@ -24,6 +24,7 @@ export const inputStyles = {
         }),
         auth: (props: StyleFunctionProps) => ({
           field: {
+            fontSize: "sm",
             fontWeight: "500",
             color: mode("navy.700", "white")(props),
             bg: mode("transparent", "transparent")(props),
@@ -54,6 +55,19 @@ export const inputStyles = {
           },
         }),
       },
+      // Satu-satunya bentuk form yang dipakai aplikasi ini, jadi ia default.
+      //
+      // Chakra menggabung defaultProps SEBELUM props pemanggil
+      // (@chakra-ui/system useStyleConfigImpl), jadi prop eksplisit tetap
+      // menang -- dropdown status di dalam baris tabel masih bisa `size="sm"`.
+      //
+      // Tanpa ini, kontrol tanpa prop `variant` diam-diam dapat `outline`
+      // bawaan Chakra, yang tidak ada hubungannya dengan tampilan aplikasi ini.
+      defaultProps: {
+        variant: "auth",
+        size: "lg",
+      },
+
     },
     NumberInput: {
       baseStyle: {
@@ -102,6 +116,19 @@ export const inputStyles = {
           },
         }),
       },
+      // Satu-satunya bentuk form yang dipakai aplikasi ini, jadi ia default.
+      //
+      // Chakra menggabung defaultProps SEBELUM props pemanggil
+      // (@chakra-ui/system useStyleConfigImpl), jadi prop eksplisit tetap
+      // menang -- dropdown status di dalam baris tabel masih bisa `size="sm"`.
+      //
+      // Tanpa ini, kontrol tanpa prop `variant` diam-diam dapat `outline`
+      // bawaan Chakra, yang tidak ada hubungannya dengan tampilan aplikasi ini.
+      defaultProps: {
+        variant: "auth",
+        size: "lg",
+      },
+
     },
     Select: {
       baseStyle: {
@@ -174,24 +201,44 @@ export const inputStyles = {
             right: "0px",
           },
         }),
-        auth: () => ({
+        // Disalin nilai per nilai dari Input.auth di atas. Dulu varian ini
+        // tidak punya fontSize, fontWeight, mode(), maupun `icon` sama sekali,
+        // jadi setiap dropdown di aplikasi ini mengetik dua yang pertama di
+        // call site-nya sendiri, dan chevron-nya memakai warna bawaan Chakra.
+        auth: (props: StyleFunctionProps) => ({
           field: {
+            fontSize: "sm",
+            fontWeight: "500",
+            color: mode("navy.700", "white")(props),
             bg: "transparent",
             border: "1px solid",
-
-            borderColor: "secondaryGray.100",
+            borderColor: mode(
+              "secondaryGray.100",
+              "rgba(135, 140, 189, 0.3)"
+            )(props),
             borderRadius: "16px",
-            _placeholder: { color: "secondaryGray.600" },
+            _placeholder: { color: "secondaryGray.600", fontWeight: "400" },
+          },
+          icon: {
+            color: mode("secondaryGray.600", "whiteAlpha.600")(props),
           },
         }),
         authSecondary: (props: StyleFunctionProps) => ({
           field: {
+            fontSize: "sm",
+            fontWeight: "500",
+            color: mode("navy.700", "white")(props),
             bg: "transparent",
             border: "1px solid",
-
-            borderColor: "secondaryGray.100",
+            borderColor: mode(
+              "secondaryGray.100",
+              "rgba(135, 140, 189, 0.3)"
+            )(props),
             borderRadius: "16px",
-            _placeholder: { color: "secondaryGray.600" },
+            _placeholder: { color: "secondaryGray.600", fontWeight: "400" },
+          },
+          icon: {
+            color: mode("secondaryGray.600", "whiteAlpha.600")(props),
           },
         }),
         search: (props: StyleFunctionProps) => ({
@@ -203,6 +250,19 @@ export const inputStyles = {
           },
         }),
       },
+      // Satu-satunya bentuk form yang dipakai aplikasi ini, jadi ia default.
+      //
+      // Chakra menggabung defaultProps SEBELUM props pemanggil
+      // (@chakra-ui/system useStyleConfigImpl), jadi prop eksplisit tetap
+      // menang -- dropdown status di dalam baris tabel masih bisa `size="sm"`.
+      //
+      // Tanpa ini, kontrol tanpa prop `variant` diam-diam dapat `outline`
+      // bawaan Chakra, yang tidak ada hubungannya dengan tampilan aplikasi ini.
+      defaultProps: {
+        variant: "auth",
+        size: "lg",
+      },
+
     },
   },
 };

@@ -47,14 +47,13 @@ export function PasswordField({ autoComplete, ...props }: PasswordFieldProps) {
   const label = visible ? 'Sembunyikan password' : 'Tampilkan password'
   const Eye = visible ? RiEyeCloseLine : MdOutlineRemoveRedEye
 
+  // InputGroup lg, bukan md. Selama Input di dalamnya membawa size="lg"
+  // sendiri, md di sini tidak pernah berlaku -- sekarang size datang dari tema,
+  // jadi pembungkusnya yang menentukan, dan md akan mengecilkan field-nya.
   return (
-    <InputGroup size="md">
+    <InputGroup size="lg">
       <Input
         id={inputId}
-        variant="auth"
-        fontSize="sm"
-        size="lg"
-        fontWeight="500"
         // The whole point: flipping this is what reveals the value.
         type={visible ? 'text' : 'password'}
         autoComplete={autoComplete}

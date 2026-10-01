@@ -7,7 +7,11 @@ import { progressStyles } from './components/progress';
 import { sliderStyles } from './components/slider';
 import { textareaStyles } from './components/textarea';
 import { switchStyles } from './components/switch';
+import { tableStyles } from './components/table';
 import { linkStyles } from './components/link';
+import { menuStyles } from './components/menu';
+import { modalStyles } from './components/modal';
+import { popoverStyles } from './components/popover';
 import { breakpoints } from './foundations/breakpoints';
 import { globalStyles } from './styles';
 
@@ -22,6 +26,10 @@ export default extendTheme(
 	inputStyles, // input styles
 	textareaStyles, // textarea styles
 	switchStyles, // switch styles
+	tableStyles, // table styles
+	menuStyles, // menu styles
+	popoverStyles, // popover styles
+	modalStyles, // modal + alert dialog styles
 	CardComponent // card component
 );
 
