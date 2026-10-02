@@ -5,7 +5,15 @@ import { Box, Button, Flex, IconButton, Image, Progress, SimpleGrid, Text } from
 import { useRef, useState } from 'react'
 import { MdPhotoCamera } from 'react-icons/md'
 
+import { PhotoLightbox } from 'components/handover/PhotoLightbox'
+import { useDialogState } from 'hooks/useDialogState'
 import type { PhotoUpload } from 'hooks/usePhotoUpload'
+
+const STATUS_CAPTION: Record<PhotoUpload['status'], string> = {
+  uploading: 'Mengunggah…',
+  done: 'Terunggah',
+  error: 'Gagal terunggah',
+}
 
 /**
  * Camera-first photo field for handovers.  (S1-037)
@@ -28,6 +36,7 @@ export function PhotoPicker({
   label?: string
 }) {
   const input = useRef<HTMLInputElement>(null)
+  const lb = useDialogState<number>()
   const [refused, setRefused] = useState(0)
   const done = photos.filter((p) => p.status === 'done').length
 
@@ -66,7 +75,12 @@ export function PhotoPicker({
         <SimpleGrid columns={3} gap="8px" mt="12px">
           {photos.map((p) => (
             <Box key={p.id} position="relative" borderRadius="10px" overflow="hidden" bg="surface.sunken">
-              <Image src={p.preview} alt="Foto kondisi" objectFit="cover" w="100%" h="96px" />
+              {/* Thumbnail-nya tombol: operator mengecek hasil jepretan di
+                  lightbox. Tombol buang/ulang tetap di lapisan atasnya. */}
+              <Box as="button" type="button" display="block" w="100%" aria-label="Lihat foto lebih besar"
+                _focusVisible={{ boxShadow: 'outline' }} onClick={() => lb.open(photos.indexOf(p))}>
+                <Image src={p.preview} alt="Foto kondisi" objectFit="cover" w="100%" h="96px" />
+              </Box>
               {p.status === 'uploading' && (
                 <Progress value={p.progress * 100} size="xs" position="absolute" bottom="0" left="0" right="0"
                   aria-label="Progres unggah" />
@@ -81,6 +95,10 @@ export function PhotoPicker({
             </Box>
           ))}
         </SimpleGrid>
+      )}
+      {lb.value !== null && (
+        <PhotoLightbox photos={photos.map((x) => ({ url: x.preview, caption: STATUS_CAPTION[x.status] }))}
+          initialIndex={lb.value} isOpen={lb.isOpen} onClose={lb.close} onCloseComplete={lb.onCloseComplete} />
       )}
     </Box>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Button, Card, Flex, Spinner, Text } from '@chakra-ui/react'
+import { Box, Button, Card, Flex, SimpleGrid, Spinner, Text } from '@chakra-ui/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -84,36 +84,49 @@ export default function PickupPage() {
   })
 
   if (ctx.isPending || !ctx.booking) {
-    return <PageShell title="Serah-terima ambil"><Flex py="60px" justify="center"><Spinner size="lg" /></Flex></PageShell>
+    return <PageShell title="Serah-terima ambil" width="form-aside"><Flex py="60px" justify="center"><Spinner size="lg" /></Flex></PageShell>
   }
   const b = ctx.booking
-  const bisa = photos.keys.length > 0 && !photos.pending && (!ctx.isVehicle || meter !== '')
+  // Lihat catatan di halaman return: tombol nonaktif menyebut sendiri syaratnya.
+  const kurang = photos.keys.length === 0 ? 'Ambil minimal satu foto kondisi dulu.'
+    : photos.pending ? 'Tunggu semua foto selesai terunggah.'
+    : ctx.isVehicle && meter === '' ? 'Isi odometer dulu.'
+    : null
+  const bisa = kurang === null
 
   return (
-    <PageShell title={`Ambil ${b.code}`} width="form"
+    <PageShell title={`Ambil ${b.code}`} width="form-aside"
       breadcrumb={[{ label: 'Booking', href: '/bookings' }, { label: b.code, href: `/bookings?id=${id}` }]}>
-      <Card variant="section" mb="16px">
-        <Text fontWeight="700" color="text.primary">{b.customer.name}</Text>
-        <Text fontSize="sm" color="text.secondary">
-          {b.resource.name} · {b.unit.label ? `${b.unit.label} (${b.unit.code})` : b.unit.code}
-        </Text>
-        <Text fontSize="sm" color="text.secondary">{formatRange(b.start_at, b.end_at)}</Text>
-      </Card>
+      {/* Satu baris konteks, bukan kartu: di desktop dua kolom di bawah harus
+          muat tanpa scroll, dan tiap kartu ekstra adalah ~90px yang hilang. */}
+      <Text fontSize="sm" color="text.secondary" mb="12px">
+        <Text as="span" fontWeight="700" color="text.primary">{b.customer.name}</Text>
+        {' · '}{b.resource.name} · {b.unit.label ? `${b.unit.label} (${b.unit.code})` : b.unit.code}
+        {' · '}{formatRange(b.start_at, b.end_at)}
+      </Text>
 
-      <Card variant="section">
-        <PhotoPicker photos={photos.photos} onAdd={photos.add} onRetry={photos.retry} onRemove={photos.remove} />
-        <HandoverFields isVehicle={ctx.isVehicle} meter={meter} onMeter={setMeter}
-          meterError={error?.field === 'meter' ? error.message : undefined}
-          items={ctx.items} checklist={checklist} onChecklist={(k, v) => setChecklist((c) => ({ ...c, [k]: v }))}
-          notes={notes} onNotes={setNotes} />
-      </Card>
-
-      {error !== null && error.field === undefined && (
-        <Card variant="panel" role="alert" mt="16px"><Text fontSize="sm" color="text.primary">{error.message}</Text></Card>
-      )}
+      {/* Dua kolom di lg: foto kiri, isian kanan. Di HP tetap satu kolom
+          berurut foto dulu -- alur satu tangan S1-037 tidak berubah. */}
+      <SimpleGrid columns={{ base: 1, lg: 2 }} gap="16px" alignItems="start">
+        <Card variant="section">
+          <PhotoPicker photos={photos.photos} onAdd={photos.add} onRetry={photos.retry} onRemove={photos.remove} />
+        </Card>
+        <Card variant="section">
+          <HandoverFields isVehicle={ctx.isVehicle} meter={meter} onMeter={setMeter}
+            meterError={error?.field === 'meter' ? error.message : undefined}
+            items={ctx.items} checklist={checklist} onChecklist={(k, v) => setChecklist((c) => ({ ...c, [k]: v }))}
+            notes={notes} onNotes={setNotes} />
+          {error !== null && error.field === undefined && (
+            <Box role="alert" mt="16px"><Text fontSize="sm" color="red.500">{error.message}</Text></Box>
+          )}
+        </Card>
+      </SimpleGrid>
 
       <StickyAction>
         <Box flex="1">
+          {kurang !== null && (
+            <Text fontSize="sm" color="text.secondary" textAlign="center" mb="6px" aria-live="polite">{kurang}</Text>
+          )}
           <Button w="100%" h="56px" variant="brand" fontSize="md" isDisabled={!bisa}
             isLoading={simpan.isPending} onClick={() => { setError(null); simpan.mutate(false) }}>
             {photos.pending ? 'Menunggu foto terunggah…' : 'Serahkan unit'}

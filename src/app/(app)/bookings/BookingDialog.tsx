@@ -116,7 +116,9 @@ export default function BookingDialog({ id, message, busy, onAction, onClose }: 
               <Button variant="brand" onClick={() => onAction('pickup', b)}>Serah-terima ambil</Button>
             )}
             {canHandover && boleh.return && (
-              <Button variant="brand" onClick={() => onAction('return', b)}>Terima kembali</Button>
+              // Outline, bukan brand: modal ini juga terbuka SESAAT setelah
+              // ambil, dan "Terima kembali" bukan ajakan untuk detik itu.
+              <Button variant="outline" onClick={() => onAction('return', b)}>Terima kembali</Button>
             )}
           </ModalFooter>
         )}

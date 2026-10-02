@@ -1,6 +1,9 @@
 'use client'
 
-import { Box, Flex, Image, Link, SimpleGrid, Spinner, Text } from '@chakra-ui/react'
+import { Box, Flex, Image, SimpleGrid, Spinner, Text } from '@chakra-ui/react'
+
+import { PhotoLightbox, type LightboxPhoto } from 'components/handover/PhotoLightbox'
+import { useDialogState } from 'hooks/useDialogState'
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from 'lib/api/client'
@@ -16,6 +19,7 @@ const ARAH: Record<string, string> = { pickup: 'Saat diambil', return: 'Saat dik
  * new note, never a change to an old one.
  */
 export function HandoverGallery({ bookingId }: { bookingId: string }) {
+  const lb = useDialogState<{ photos: LightboxPhoto[]; index: number }>()
   const { data, isPending } = useQuery({
     queryKey: ['bookings', bookingId, 'handovers'],
     // Signed URLs live an hour; refetch well before, not on every focus.
@@ -51,13 +55,23 @@ export function HandoverGallery({ bookingId }: { bookingId: string }) {
           )}
           <SimpleGrid columns={{ base: 3, md: 4 }} gap="6px">
             {h.photos.map((p) => (
-              <Link key={p.id} href={p.url} isExternal aria-label={`Buka foto ${formatDateTime(p.captured_at)}`}>
-                <Image src={p.url} alt="Foto kondisi" objectFit="cover" w="100%" h="84px" borderRadius="8px" />
-              </Link>
+              <Box key={p.id} as="button" type="button" borderRadius="8px" overflow="hidden"
+                aria-label={`Lihat foto ${formatDateTime(p.captured_at)}`}
+                _focusVisible={{ boxShadow: 'outline' }}
+                onClick={() => lb.open({
+                  photos: h.photos.map((x) => ({ url: x.url, caption: formatDateTime(x.captured_at), href: x.url })),
+                  index: h.photos.indexOf(p),
+                })}>
+                <Image src={p.url} alt="Foto kondisi" objectFit="cover" w="100%" h="84px" />
+              </Box>
             ))}
           </SimpleGrid>
         </Box>
       ))}
+      {lb.value && (
+        <PhotoLightbox photos={lb.value.photos} initialIndex={lb.value.index}
+          isOpen={lb.isOpen} onClose={lb.close} onCloseComplete={lb.onCloseComplete} />
+      )}
     </Box>
   )
 }
