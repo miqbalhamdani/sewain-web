@@ -464,6 +464,268 @@ export interface paths {
         patch: operations["updateUnit"];
         trace?: never;
     };
+    "/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Penyewa di usaha ini
+         * @description Semua peran (`customers:read`). Urut terbaru dulu, paginasi cursor.
+         *     `q` mencocokkan nama atau telepon — yang dipakai form booking untuk memilih
+         *     penyewa sambil mengetik.
+         */
+        get: operations["listCustomers"];
+        put?: never;
+        /**
+         * Catat penyewa baru
+         * @description Semua peran (`customers:write`) — BR-003 mengizinkan operator mengelola data
+         *     penyewa. **`id_number` dienkripsi aplikasi sebelum menyentuh database** dan tidak
+         *     pernah dibalas lagi; respons hanya membawa empat digit terakhirnya (BR-085).
+         */
+        post: operations["createCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Satu penyewa */
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Ubah data penyewa
+         * @description Semua peran (`customers:write`). **Status blokir tidak bisa diubah di sini** —
+         *     `is_blacklisted` dan `blacklist_reason` tidak ada di `CustomerUpdate`, karena
+         *     operator boleh memanggil endpoint ini dan BR-028 melarangnya memblokir.
+         */
+        patch: operations["updateCustomer"];
+        trace?: never;
+    };
+    "/customers/{id}/blacklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Blokir penyewa
+         * @description Hanya peran `owner` (`customers:blacklist`, BR-028). Alasan wajib — operator
+         *     yang ditolak sistemnya harus bisa membaca kenapa. Memblokir tidak membatalkan
+         *     booking yang sudah ada; ia menolak booking **baru**.
+         */
+        post: operations["blacklistCustomer"];
+        /**
+         * Buka blokir penyewa
+         * @description Hanya peran `owner` (`customers:blacklist`, BR-028). Alasannya ikut dikosongkan.
+         */
+        delete: operations["unblacklistCustomer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unit yang tersedia pada satu rentang
+         * @description Semua peran (`bookings:read`). Satu baris per jenis barang `active`, beserta
+         *     unit `active`-nya yang tidak dikunci booking `reserved`/`picked_up` pada
+         *     `[start_at, end_at)` — dengan buffer tiap booking ikut dihitung (BR-013,
+         *     BR-015, BR-020). Jenis barang tanpa unit tersedia tetap muncul dengan
+         *     `available_units` kosong, supaya layar bisa bilang "penuh", bukan diam.
+         *
+         *     Dihitung saat request, tanpa cache (`03-erd.md` §4).
+         */
+        get: operations["getAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lajur per unit untuk layar kalender
+         * @description Semua peran (`bookings:read`). Satu lajur per unit yang tidak `retired`, dan
+         *     tiap segmen membawa satu `state` dari delapan keadaan BR-033 — **dihitung
+         *     server, tidak pernah disusun klien**.
+         *
+         *     Segmen menutup `[from, to)` tanpa celah. `draft` tidak pernah muncul,
+         *     `returned` tampil `available`, unit `maintenance` punya satu segmen
+         *     `maintenance` sepanjang rentangnya.
+         *
+         *     **`reserved_paid` belum pernah terbit sampai `S1-041` membuat tabel
+         *     `invoices`.** Sebelum itu setiap `reserved` adalah `reserved_unpaid` — yang
+         *     benar, karena belum ada satu pun yang dibayar. Enum-nya sudah lengkap supaya
+         *     layarnya ditulis sekali; yang menyusul cuma join-nya.
+         *
+         *     Rentang dibatasi 366 hari; lebih dari itu `422`.
+         */
+        get: operations["getCalendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Booking di usaha ini
+         * @description Semua peran (`bookings:read`). Urut `start_at` terbaru dulu, paginasi cursor.
+         *
+         *     `from`/`to` menyaring booking yang **beririsan** dengan rentang itu, bukan yang
+         *     mulai di dalamnya. `overdue=true` adalah kondisi turunan — `picked_up` dan
+         *     `end_at < now()` — bukan status (BR-041); ia tidak ada di enum `status`.
+         */
+        get: operations["listBookings"];
+        put?: never;
+        /**
+         * Buat booking dari backoffice
+         * @description Semua peran (`bookings:write`). Booking staff **langsung `reserved`**.
+         *
+         *     Server mengisi `code` dari pencacah pemilik (BR-024), `resource_id` dari unitnya,
+         *     dan seluruh snapshot dari resource saat itu — harga, satuan, `buffer_minutes`,
+         *     deposit, denda (BR-014, BR-015). `NULL` tersalin sebagai `NULL` (BR-016).
+         *     **Field harga yang dikirim klien → `422`**, seperti setiap field yang dikelola
+         *     server; `end_at_with_buffer` yang dikirim ditimpa trigger.
+         *
+         *     - durasi di luar `min_duration`/`max_duration` → `422 duration-out-of-range`;
+         *       batas yang kosong berarti tanpa batas (BR-021)
+         *     - penyewa diblokir → `422 customer-blacklisted` (BR-028)
+         *     - unit bentrok → `409 booking-conflict` beserta `conflicts[]` — termasuk saat
+         *       kalah balapan di `bookings_no_overlap` (BR-022). **Jangan retry otomatis.**
+         *     - unit di luar `active` → `422 validation-failed` ber-field `resource_unit_id`
+         */
+        post: operations["createBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Satu booking */
+        get: operations["getBooking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Tukar unit booking
+         * @description Semua peran (`bookings:write`). Di fase ini satu-satunya field adalah
+         *     `resource_unit_id` — tukar unit (BR-029):
+         *
+         *     - hanya saat `reserved`; status lain → `409 unit-not-swappable`
+         *     - hanya ke unit dari resource yang sama — **ditolak database** lewat
+         *       `bookings_unit_matches_resource`, dibalas `422` ber-field `resource_unit_id`
+         *     - unit tujuan wajib lolos cek bentrok → `409 booking-conflict`
+         *
+         *     Snapshot harga **tidak** dibaca ulang: unitnya berganti, jenis barangnya tidak.
+         *     Tidak ada `PATCH {status}` — setiap transisi lewat endpoint aksi (§8).
+         */
+        patch: operations["updateBooking"];
+        trace?: never;
+    };
+    "/bookings/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Konfirmasi draft jadi reserved
+         * @description Semua peran (`bookings:write`). Cek bentrok dijalankan **ulang** saat itu juga —
+         *     draft tidak pernah menahan unit, jadi konfirmasi bisa gagal dan itu benar
+         *     (BR-026). Selain `draft` → `409 booking-conflict` tidak terjadi; yang terjadi
+         *     `422 validation-failed` ber-field `status`.
+         */
+        post: operations["confirmBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batalkan booking
+         * @description Semua peran (`bookings:write`). Hanya dari `draft` atau `reserved`; alasan
+         *     tercatat `manual`. Unitnya langsung bebas — exclusion constraint berhenti
+         *     melihat baris ini (BR-023). Pengembalian dana adalah fase 2.
+         */
+        post: operations["cancelBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -945,9 +1207,8 @@ export interface components {
              *     Ia ada supaya pemilik yang menaikkan harga tahu persis berapa banyak
              *     yang tidak ikut naik, tanpa menebak.
              *
-             *     **Selalu `0` sampai `S1-022` membuat tabel `bookings`.** Bentuk
-             *     responsnya mendarat sekarang supaya layarnya ditulis sekali; yang
-             *     menyusul cuma isi query-nya.
+             *     Dihitung: booking `draft`, `reserved`, atau `picked_up` untuk jenis
+             *     barang ini.
              */
             active_bookings: number;
         };
@@ -1023,7 +1284,7 @@ export interface components {
              * @description Booking yang sudah ada untuk unit ini dan **tidak** dibatalkan maupun
              *     dihapus. Pemilik yang memutuskan apa yang terjadi pada masing-masing.
              *
-             *     **Selalu kosong sampai `S1-022` membuat tabel `bookings`.**
+             *     Yang dihitung: `draft`, `reserved`, `picked_up` yang belum berakhir.
              */
             affected_bookings: components["schemas"]["AffectedBooking"][];
         };
@@ -1125,6 +1386,195 @@ export interface components {
             /** Format: date */
             registration_valid_until?: string | null;
         };
+        /** @enum {string} */
+        IdType: "ktp" | "sim" | "passport";
+        /**
+         * @description Penyewa. **Nomor identitas tidak pernah dibalas** — ia tersimpan terenkripsi
+         *     aplikasi dan hanya empat digit terakhirnya yang keluar, supaya operator bisa
+         *     mencocokkan KTP di tangan tanpa server pernah mengirim nomornya utuh (BR-085).
+         *
+         *     `blacklist_reason` terbaca semua peran di backoffice — BR-028 justru mewajibkan
+         *     operator melihatnya. Ia tidak pernah keluar ke permukaan publik.
+         */
+        Customer: {
+            /** Format: uuid */
+            id: string;
+            /** @example Budi Santoso */
+            name: string;
+            /** @example +6281234567890 */
+            phone: string;
+            id_type: components["schemas"]["IdType"] | null;
+            /** @example 7890 */
+            id_number_last4: string | null;
+            is_blacklisted: boolean;
+            blacklist_reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description `id_number` dan `id_type` berpasangan: nomor tanpa jenisnya → `422`. */
+        CustomerCreate: {
+            name: string;
+            phone: string;
+            id_type?: components["schemas"]["IdType"];
+            id_number?: string;
+        };
+        /**
+         * @description Semua field opsional. Status blokir tidak ada di sini — lihat
+         *     `/customers/{id}/blacklist` (BR-028).
+         */
+        CustomerUpdate: {
+            name?: string;
+            phone?: string;
+            id_type?: components["schemas"]["IdType"];
+            id_number?: string;
+        };
+        CustomerPage: {
+            data: components["schemas"]["Customer"][];
+            next_cursor: string | null;
+        };
+        BlacklistRequest: {
+            reason: string;
+        };
+        /**
+         * @description Tujuh status tersimpan. `overdue` **bukan** salah satunya — ia kondisi turunan
+         *     (BR-041).
+         * @enum {string}
+         */
+        BookingStatus: "draft" | "reserved" | "picked_up" | "returned" | "completed" | "cancelled" | "no_show";
+        /**
+         * @description `manual` dari `POST /bookings/{id}/cancel`; `expired` dan `payment_expired`
+         *     dari job `S1-052`.
+         * @enum {string}
+         */
+        CancelledReason: "manual" | "expired" | "payment_expired";
+        /**
+         * @description Snapshot harga milik booking ini, bukan resource-nya — mengubah harga resource
+         *     tidak pernah menyentuhnya (BR-014). `overdue` dihitung saat dibaca, tidak
+         *     tersimpan (BR-041).
+         */
+        Booking: {
+            /** Format: uuid */
+            id: string;
+            /** @example SWN-0042 */
+            code: string;
+            status: components["schemas"]["BookingStatus"];
+            /** @enum {string} */
+            source: "staff" | "public_page";
+            customer: components["schemas"]["BookingCustomer"];
+            resource: components["schemas"]["BookingResource"];
+            unit: components["schemas"]["UnitRef"];
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            end_at: string;
+            /**
+             * Format: date-time
+             * @description Diisi trigger database, bukan aplikasi (BR-015, BR-022).
+             */
+            end_at_with_buffer: string;
+            /** @description `picked_up` dan `end_at < now()` (BR-041). */
+            overdue: boolean;
+            /** Format: int64 */
+            unit_price: number;
+            pricing_unit: components["schemas"]["PricingUnit"];
+            buffer_minutes: number;
+            duration_qty: number;
+            /** Format: int64 */
+            subtotal: number;
+            /** Format: int64 */
+            deposit_amount: number | null;
+            /** Format: int64 */
+            late_fee_per_unit: number | null;
+            cancelled_reason: components["schemas"]["CancelledReason"] | null;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        BookingCustomer: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            phone: string;
+            is_blacklisted: boolean;
+        };
+        BookingResource: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        UnitRef: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            label: string | null;
+        };
+        BookingCreate: {
+            /** Format: uuid */
+            customer_id: string;
+            /** Format: uuid */
+            resource_unit_id: string;
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            end_at: string;
+        };
+        BookingUpdate: {
+            /** Format: uuid */
+            resource_unit_id: string;
+        };
+        BookingPage: {
+            data: components["schemas"]["Booking"][];
+            next_cursor: string | null;
+        };
+        /**
+         * @description `duration_qty` = `ceil(durasi / satuan)`, dengan `month` = 30 hari tetap —
+         *     bulan kalender membuat Februari lebih murah per hari dari Maret, dan dua
+         *     penyewa dengan durasi sama membayar beda. `subtotal` = `duration_qty ×
+         *     base_price` saat ini; harga yang mengikat baru di-snapshot saat booking dibuat.
+         */
+        AvailabilityResult: {
+            resource: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** Format: int64 */
+                base_price: number;
+                pricing_unit: components["schemas"]["PricingUnit"];
+                /** Format: int64 */
+                deposit_amount: number | null;
+                buffer_minutes: number;
+            };
+            available_units: components["schemas"]["UnitRef"][];
+            duration_qty: number;
+            /** Format: int64 */
+            subtotal: number;
+        };
+        /**
+         * @description Delapan keadaan BR-033. `retired` ada di enum demi kelengkapan kosakata tapi
+         *     tidak pernah terbit — unit `retired` tidak punya lajur.
+         * @enum {string}
+         */
+        CalendarState: "available" | "reserved_unpaid" | "reserved_paid" | "picked_up" | "overdue" | "buffer" | "maintenance" | "retired";
+        CalendarRow: {
+            unit: components["schemas"]["UnitRef"];
+            /** Format: uuid */
+            resource_id: string;
+            segments: components["schemas"]["CalendarSegment"][];
+        };
+        CalendarSegment: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            state: components["schemas"]["CalendarState"];
+            booking?: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                customer_name: string;
+            };
+        };
         /**
          * @description Kode error generik yang dipakai setiap endpoint sebelum sampai ke aturan bisnisnya.
          *     Kode spesifik per aturan bisnis ada di `04-api-spec.md` §2 dan ditambahkan oleh item
@@ -1134,7 +1584,7 @@ export interface components {
          *     underscore.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight";
+        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable";
         /**
          * @description Satu detail per-field di dalam `Problem`. Ia membawa apa pun yang dibutuhkan kegagalan
          *     spesifiknya, jadi properti tambahan diizinkan secara desain.
@@ -1170,6 +1620,11 @@ export interface components {
             /** @example 4bf92f3577b34da6a3ce929d0e0e4736 */
             trace_id: string;
             errors?: components["schemas"]["ProblemError"][];
+            /**
+             * @description Hanya pada `booking-conflict`: booking yang mengunci unit itu pada rentang
+             *     yang diminta, supaya layar bisa menunjuknya alih-alih bilang "gagal" (BR-022).
+             */
+            conflicts?: components["schemas"]["AffectedBooking"][];
         };
     };
     responses: {
@@ -1218,8 +1673,9 @@ export interface components {
             };
         };
         /**
-         * @description Bentrok dengan keadaan sekarang. Di fase ini: `request-in-flight` ketika
-         *     `Idempotency-Key` yang sama masih diproses (BR-090).
+         * @description Bentrok dengan keadaan sekarang: `request-in-flight` ketika `Idempotency-Key`
+         *     yang sama masih diproses (BR-090), `booking-conflict` beserta `conflicts[]`
+         *     (BR-022), atau `unit-not-swappable` (BR-029).
          */
         Conflict: {
             headers: {
@@ -1861,6 +2317,416 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnitUpdated"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    listCustomers: {
+        parameters: {
+            query?: {
+                q?: string;
+                /** @description Ukuran halaman. Berpasangan dengan `cursor`; tidak ada `offset` di API ini. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Cursor buram dari halaman sebelumnya. Hanya paginasi cursor — `offset` yang dalam di
+                 *     tabel besar adalah sequential scan, jadi parameternya tidak ada.
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Satu halaman penyewa. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    createCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreate"];
+            };
+        };
+        responses: {
+            /** @description Penyewa tercatat. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Penyewa itu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Penyewa sesudah diubah. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    blacklistCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlacklistRequest"];
+            };
+        };
+        responses: {
+            /** @description Penyewa sesudah diblokir. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    unblacklistCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Penyewa sesudah dibuka blokirnya. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAvailability: {
+        parameters: {
+            query: {
+                start_at: string;
+                end_at: string;
+                resource_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ketersediaan per jenis barang. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AvailabilityResult"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getCalendar: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lajur kalender. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CalendarRow"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    listBookings: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["BookingStatus"];
+                from?: string;
+                to?: string;
+                unit_id?: string;
+                customer_id?: string;
+                overdue?: boolean;
+                /** @description Ukuran halaman. Berpasangan dengan `cursor`; tidak ada `offset` di API ini. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Cursor buram dari halaman sebelumnya. Hanya paginasi cursor — `offset` yang dalam di
+                 *     tabel besar adalah sequential scan, jadi parameternya tidak ada.
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Satu halaman booking. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    createBooking: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingCreate"];
+            };
+        };
+        responses: {
+            /** @description Booking terbit, `reserved`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking itu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Booking sesudah ditukar unitnya. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    confirmBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking sesudah dikonfirmasi. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    cancelBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking sesudah dibatalkan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
                 };
             };
             401: components["responses"]["Unauthorized"];

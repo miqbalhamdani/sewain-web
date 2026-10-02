@@ -99,6 +99,20 @@ export const globalStyles = {
       "border.subtle": { default: "gray.200", _dark: "whiteAlpha.100" },
       "surface.hover": { default: "secondaryGray.300", _dark: "whiteAlpha.50" },
       "surface.sunken": { default: "secondaryGray.300", _dark: "whiteAlpha.100" },
+
+      // Kalender (BR-033). Warna acuan dari tabel BR-033, tapi warna TIDAK
+      // pernah jadi satu-satunya pembeda: tiap keadaan selain `available` juga
+      // punya pola atau border di CalendarGrid, dan tiap blok berlabel teks.
+      "calendar.available": { default: "green.50", _dark: "rgba(72, 187, 120, 0.12)" },
+      "calendar.reserved_unpaid": { default: "blue.200", _dark: "blue.600" },
+      "calendar.reserved_paid": { default: "blue.500", _dark: "blue.400" },
+      "calendar.picked_up": { default: "orange.300", _dark: "orange.500" },
+      "calendar.overdue": { default: "red.400", _dark: "red.500" },
+      "calendar.buffer": { default: "gray.300", _dark: "gray.600" },
+      "calendar.maintenance": { default: "gray.800", _dark: "gray.900" },
+      "calendar.ink": { default: "gray.900", _dark: "white" },
+      "calendar.inkOnDark": { default: "white", _dark: "white" },
+      "calendar.grid": { default: "gray.200", _dark: "whiteAlpha.200" },
     },
   },
   styles: {

@@ -17,6 +17,8 @@ type ConfirmDialogProps = {
   title: string
   body: string
   busy?: boolean
+  /** Label aksi merusaknya. Default "Hapus", karena itu pemakai pertamanya. */
+  confirmLabel?: string
   onCancel: () => void
   onConfirm: () => void
 }
@@ -32,6 +34,7 @@ export function ConfirmDialog({
   title,
   body,
   busy = false,
+  confirmLabel = 'Hapus',
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -54,7 +57,7 @@ export function ConfirmDialog({
               Batal
             </Button>
             <Button variant="outline" colorScheme="red" isLoading={busy} onClick={onConfirm}>
-              Hapus
+              {confirmLabel}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

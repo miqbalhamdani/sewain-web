@@ -52,3 +52,33 @@ export function formatDateTime(iso: string): string {
     minute: '2-digit',
   })
 }
+
+/**
+ * `<input type="datetime-local">` speaks wall-clock time with no zone. This
+ * system's wall clock is Jakarta's, so the value is pinned to +07:00 before it
+ * reaches the API -- never left to the browser's own zone, which would move a
+ * 09:00 booking made from a laptop set to anything else.
+ */
+export function fromJakartaLocal(value: string): string {
+  return value.length === 16 ? `${value}:00+07:00` : `${value}+07:00`
+}
+
+/** The inverse: an API timestamp → `YYYY-MM-DDTHH:mm` in Jakarta, for the input. */
+export function toJakartaLocal(iso: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? ''
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`
+}
+
+/** `[start, end)` as a juragan reads it: "3 Sep 2026 09.00 – 5 Sep 2026 09.00". */
+export function formatRange(startIso: string, endIso: string): string {
+  return `${formatDateTime(startIso)} – ${formatDateTime(endIso)}`
+}

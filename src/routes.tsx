@@ -1,6 +1,7 @@
 import { Icon } from '@chakra-ui/react'
 import {
   MdBarChart,
+  MdCalendarMonth,
   MdHome,
   MdInventory2,
   MdOutlineShoppingCart,
@@ -30,6 +31,14 @@ const routes: IRoute[] = [
     path: '/catalog',
     icon: <Icon as={MdInventory2} width="20px" height="20px" color="inherit" />,
     permission: 'resources:read',
+  },
+  {
+    // Layar yang paling sering dibuka juragan (BR-033), jadi tepat di bawah
+    // Dashboard, bukan di ujung daftar.
+    name: 'Kalender',
+    path: '/calendar',
+    icon: <Icon as={MdCalendarMonth} width="20px" height="20px" color="inherit" />,
+    permission: 'bookings:read',
   },
   {
     name: 'Booking',
