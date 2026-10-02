@@ -732,6 +732,254 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/uploads/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Minta URL unggah langsung ke object storage
+         * @description Semua peran. Byte tidak pernah lewat API (BR-093): klien `PUT` langsung ke
+         *     `upload_url`, lalu menyerahkan `object_key` ke endpoint domainnya —
+         *     `/bookings/{id}/pickup`, `/bookings/{id}/return`, `/customers/{id}/identity`.
+         *
+         *     **Server yang menentukan kunci**, selalu `pending/<owner_id>/<uuid>`.
+         *     `Content-Type` dan `Content-Length` diikat pada tanda tangan, jadi storage
+         *     sendiri yang menolak berkas lain. URL hidup 10 menit. Objek yang tidak pernah
+         *     di-commit hilang dalam 24 jam lewat lifecycle rule.
+         *
+         *     `payment_proof` menyusul bersama `S1-046`. Rate limit 60/menit per pengguna.
+         */
+        post: operations["presignUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{id}/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Buka foto identitas (tercatat di audit log)
+         * @description Semua peran (`customers:read`). URL bertanda tangan berumur **5 menit**, dan
+         *     **setiap panggilan menulis satu baris `audit_logs` dalam transaksi yang sama**
+         *     (BR-085). Tanpa foto → `404`.
+         */
+        get: operations["viewCustomerIdentityPhoto"];
+        put?: never;
+        /**
+         * Simpan foto identitas penyewa
+         * @description Semua peran (`customers:write`). `object_key` dari `/uploads/presign` dengan
+         *     `kind: identity_photo`; server mem-`HEAD` lalu menyalinnya ke
+         *     `identity/<owner_id>/<customer_id>/…` sebelum menyimpan kuncinya (BR-093).
+         *     Foto lama diganti — identitas bukan bukti serah-terima.
+         */
+        post: operations["setCustomerIdentityPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/pickup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Serah-terima ambil
+         * @description Semua peran (`handovers:write`). Dari `reserved` — atau `no_show`, yang tidak
+         *     pernah ditolak langsung (BR-057) — ke `picked_up`, dan satu baris `handovers`
+         *     arah `pickup` terbit dalam transaksi yang sama (BR-035).
+         *
+         *     - `photo_keys` kosong → `422 handover-photo-required`; kunci yang `HEAD`-nya
+         *       gagal atau bukan milik usaha ini → `422 upload-not-found` /
+         *       `upload-type-mismatch` (BR-036, BR-093)
+         *     - resource kendaraan tanpa `meter_value` → `422 meter-value-required`. "Bermeter"
+         *       = resource punya spek kendaraan (BR-094)
+         *     - `require_payment_before_pickup` menyala dan invoice sewa belum lunas →
+         *       `409 payment-required-before-pickup` (BR-038)
+         *     - unit masih dibawa booking sebelumnya yang sudah lewat `end_at` →
+         *       `409 physical-conflict-unconfirmed` beserta `conflicts[]`, sampai dikirim ulang
+         *       dengan `confirm_physical_conflict: true` (BR-042)
+         */
+        post: operations["pickupBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/return-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Pratinjau denda telat
+         * @description Semua peran (`handovers:read`). Dihitung saat ini, tidak menyimpan apa pun.
+         *     `overdue_units = ceil((sekarang − end_at) / satuan harga)`, denda dari snapshot
+         *     booking (BR-046). Resource tanpa tarif denda tidak mengusulkan baris, tapi
+         *     `overdue_units` tetap dihitung (BR-016, BR-041). Hanya untuk booking `picked_up`.
+         */
+        get: operations["previewReturn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Serah-terima kembali
+         * @description Semua peran (`handovers:write`). `picked_up` → `returned`, satu baris
+         *     `handovers` arah `return`, `actual_return_at` dari jam server (BR-035, BR-040).
+         *
+         *     Keputusan operator, bukan salinan preview (BR-051):
+         *     - `confirm_late_fee: true` menerbitkan baris `late_fee` sebesar denda
+         *       dikurangi `late_fee_waived`. Denda yang tidak dikonfirmasi tidak terbit.
+         *     - Pembebasan apa pun — sebagian, seluruhnya, atau tidak mengonfirmasi denda
+         *       yang diusulkan — wajib `waiver_reason` → `422 waiver-reason-required`.
+         *       Alasan dan jumlahnya tercatat di baris handover, karena pembebasan penuh
+         *       tidak punya baris invoice untuk menampungnya.
+         *     - Tiap `damages[]` menunjuk **salah satu `photo_keys` di request ini** — foto
+         *       pengembalian belum punya id saat request dikirim (BR-047).
+         *
+         *     Baris yang terbit masuk **satu invoice baru** milik booking ini. Penyelesaian
+         *     deposit adalah langkah terpisah (`S1-042`).
+         */
+        post: operations["returnBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Bukti kondisi satu booking
+         * @description Semua peran (`handovers:read`). Hanya-baca untuk siapa pun, termasuk `owner`
+         *     (BR-037). URL foto bertanda tangan berumur 1 jam.
+         */
+        get: operations["listHandovers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/handovers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Tidak ada — bukti kondisi tidak bisa dihapus
+         * @description Selalu `405 evidence-immutable` (BR-037), termasuk untuk `owner`.
+         */
+        delete: operations["deleteHandover"];
+        options?: never;
+        head?: never;
+        /**
+         * Tidak ada — bukti kondisi tidak bisa diubah
+         * @description Selalu `405 evidence-immutable` (BR-037). Path ini terdaftar justru supaya
+         *     jawabannya tetap itu, bukan `404` yang menyiratkan barisnya tidak ada.
+         *     Koreksi = baris catatan baru, bukan mengubah yang lama.
+         */
+        patch: operations["patchHandover"];
+        trace?: never;
+    };
+    "/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Invoice satu booking
+         * @description Semua peran (`invoices:read`), **wajib `booking_id`** — daftar penuh lintas
+         *     booking adalah milik owner dan menyusul di M4 (BR-003). Total selalu
+         *     `SUM(lines)`, dihitung saat dibaca (BR-055).
+         */
+        get: operations["listInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Satu invoice beserta barisnya */
+        get: operations["getInvoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1403,6 +1651,11 @@ export interface components {
          *     operator melihatnya. Ia tidak pernah keluar ke permukaan publik.
          */
         Customer: {
+            /**
+             * @description Ada foto identitas tersimpan. Fotonya sendiri hanya lewat
+             *     `GET /customers/{id}/identity`, yang tercatat di audit log (BR-085).
+             */
+            has_id_photo: boolean;
             /** Format: uuid */
             id: string;
             /** @example Budi Santoso */
@@ -1459,6 +1712,11 @@ export interface components {
          *     tersimpan (BR-041).
          */
         Booking: {
+            /**
+             * Format: date-time
+             * @description Diisi jam server saat serah-terima kembali (BR-040).
+             */
+            actual_return_at: string | null;
             /** Format: uuid */
             id: string;
             /** @example SWN-0042 */
@@ -1581,6 +1839,159 @@ export interface components {
                 customer_name: string;
             };
         };
+        /** @enum {string} */
+        UploadKind: "handover_photo" | "identity_photo";
+        PresignRequest: {
+            kind: components["schemas"]["UploadKind"];
+            /** @enum {string} */
+            content_type: "image/jpeg" | "image/png" | "image/webp";
+            /** Format: int64 */
+            bytes: number;
+        };
+        PresignedUpload: {
+            /** @example pending/01926f3a-0000-7000-8000-000000000000/01926f3b-… */
+            object_key: string;
+            upload_url: string;
+            /** @example 600 */
+            expires_in: number;
+            /**
+             * @description Header yang wajib ikut di `PUT` — persis yang diikat tanda tangannya.
+             *     Mengirim nilai lain membuat storage menolak unggahannya.
+             */
+            headers: {
+                [key: string]: string;
+            };
+        };
+        IdentityPhotoInput: {
+            object_key: string;
+            id_type: components["schemas"]["IdType"];
+        };
+        SignedURL: {
+            url: string;
+            expires_in: number;
+        };
+        PickupRequest: {
+            photo_keys: string[];
+            /** Format: int64 */
+            meter_value?: number;
+            /** @description Butir periksa → nilai. Templatnya konstanta di klien per jenis barang. */
+            checklist?: {
+                [key: string]: unknown;
+            };
+            condition_notes?: string;
+            confirm_physical_conflict?: boolean;
+        };
+        ReturnRequest: {
+            photo_keys: string[];
+            /** Format: int64 */
+            meter_value?: number;
+            checklist?: {
+                [key: string]: unknown;
+            };
+            condition_notes?: string;
+            /** @description Terbitkan baris `late_fee` yang diusulkan preview. */
+            confirm_late_fee?: boolean;
+            /**
+             * Format: int64
+             * @description Bagian denda yang dibebaskan. Seluruhnya = tidak ada baris.
+             */
+            late_fee_waived?: number;
+            waiver_reason?: string;
+            damages?: components["schemas"]["DamageInput"][];
+        };
+        DamageInput: {
+            /** Format: int64 */
+            amount: number;
+            description: string;
+            /** @description Salah satu `photo_keys` di request yang sama (BR-047). */
+            photo_key: string;
+        };
+        ReturnPreview: {
+            /** Format: date-time */
+            actual_return_at: string;
+            /** Format: date-time */
+            end_at: string;
+            overdue_units: number;
+            pricing_unit: components["schemas"]["PricingUnit"];
+            /** Format: int64 */
+            late_fee_per_unit: number | null;
+            /** Format: int64 */
+            late_fee_total: number;
+            /** Format: int64 */
+            deposit_amount: number | null;
+            proposed_lines: {
+                /** @enum {string} */
+                kind: "late_fee";
+                /** Format: int64 */
+                amount: number;
+                description: string;
+            }[];
+        };
+        Handover: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            direction: "pickup" | "return";
+            /** @description Nama petugasnya. */
+            performed_by: string;
+            /** Format: date-time */
+            performed_at: string;
+            /** Format: int64 */
+            meter_value: number | null;
+            checklist: {
+                [key: string]: unknown;
+            };
+            condition_notes: string | null;
+            /** Format: int64 */
+            late_fee_waived: number | null;
+            waiver_reason: string | null;
+            photos: {
+                /** Format: uuid */
+                id: string;
+                /** @description Bertanda tangan, berumur 1 jam. */
+                url: string;
+                /** Format: date-time */
+                captured_at: string;
+            }[];
+        };
+        /**
+         * @description Lima nilai BR-056. `gateway_pending` tidak terjangkau di fase 1.
+         * @enum {string}
+         */
+        InvoiceStatus: "unpaid" | "gateway_pending" | "paid" | "overdue" | "cancelled";
+        Invoice: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            booking_id: string;
+            /** @example SWN-0042/1 */
+            number: string;
+            status: components["schemas"]["InvoiceStatus"];
+            /** Format: date-time */
+            due_at: string;
+            /** Format: date-time */
+            paid_at: string | null;
+            /**
+             * Format: int64
+             * @description `SUM(lines.amount)`, dihitung saat dibaca — tidak ada kolom total (BR-055).
+             */
+            total: number;
+            lines: components["schemas"]["InvoiceLine"][];
+            /** Format: date-time */
+            created_at: string;
+        };
+        InvoiceLine: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "rent" | "deposit" | "late_fee" | "damage" | "discount";
+            description: string;
+            /** Format: int64 */
+            amount: number;
+            /** Format: uuid */
+            handover_photo_id: string | null;
+            waiver_reason: string | null;
+        };
         /**
          * @description Kode error generik yang dipakai setiap endpoint sebelum sampai ke aturan bisnisnya.
          *     Kode spesifik per aturan bisnis ada di `04-api-spec.md` §2 dan ditambahkan oleh item
@@ -1590,7 +2001,7 @@ export interface components {
          *     underscore.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable";
+        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable" | "evidence-immutable" | "upload-not-found" | "upload-type-mismatch" | "handover-photo-required" | "meter-value-required" | "payment-required-before-pickup" | "physical-conflict-unconfirmed" | "waiver-reason-required";
         /**
          * @description Satu detail per-field di dalam `Problem`. Ia membawa apa pun yang dibutuhkan kegagalan
          *     spesifiknya, jadi properti tambahan diizinkan secara desain.
@@ -1627,8 +2038,9 @@ export interface components {
             trace_id: string;
             errors?: components["schemas"]["ProblemError"][];
             /**
-             * @description Hanya pada `booking-conflict`: booking yang mengunci unit itu pada rentang
-             *     yang diminta, supaya layar bisa menunjuknya alih-alih bilang "gagal" (BR-022).
+             * @description Pada `booking-conflict`: booking yang mengunci unit itu pada rentang yang
+             *     diminta (BR-022). Pada `physical-conflict-unconfirmed`: booking sebelumnya
+             *     yang unitnya belum kembali (BR-042).
              */
             conflicts?: components["schemas"]["AffectedBooking"][];
         };
@@ -1681,9 +2093,22 @@ export interface components {
         /**
          * @description Bentrok dengan keadaan sekarang: `request-in-flight` ketika `Idempotency-Key`
          *     yang sama masih diproses (BR-090), `booking-conflict` beserta `conflicts[]`
-         *     (BR-022), atau `unit-not-swappable` (BR-029).
+         *     (BR-022), `unit-not-swappable` (BR-029), `payment-required-before-pickup`
+         *     (BR-038), atau `physical-conflict-unconfirmed` beserta `conflicts[]` (BR-042).
          */
         Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `evidence-immutable`: bukti kondisi tidak pernah diubah atau dihapus, oleh siapa
+         *     pun (BR-037).
+         */
+        MethodNotAllowed: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2742,6 +3167,297 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    presignUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresignRequest"];
+            };
+        };
+        responses: {
+            /** @description URL unggah dan kuncinya. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignedUpload"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    viewCustomerIdentityPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description URL baca sementara. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedURL"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setCustomerIdentityPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityPhotoInput"];
+            };
+        };
+        responses: {
+            /** @description Penyewa sesudah fotonya tersimpan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    pickupBooking: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickupRequest"];
+            };
+        };
+        responses: {
+            /** @description Booking sesudah diambil. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    previewReturn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usulan, bukan keputusan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnPreview"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    returnBooking: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnRequest"];
+            };
+        };
+        responses: {
+            /** @description Booking sesudah dikembalikan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    listHandovers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Serah-terima booking ini, ambil lalu kembali. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Handover"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            405: components["responses"]["MethodNotAllowed"];
+        };
+    };
+    patchHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            405: components["responses"]["MethodNotAllowed"];
+        };
+    };
+    listInvoices: {
+        parameters: {
+            query: {
+                booking_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice booking itu, terlama dulu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invoice"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice itu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invoice"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

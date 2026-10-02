@@ -25,6 +25,8 @@ import { api } from 'lib/api/client'
 import { formatDateTime } from 'lib/format/datetime'
 import { formatPrice, formatRupiah } from 'lib/format/money'
 
+import { HandoverGallery } from './HandoverGallery'
+import { InvoiceSummary } from './InvoiceSummary'
 import { StatusBadges } from './labels'
 import { allowedActions, type BookingAction } from './useBookingActions'
 
@@ -52,13 +54,15 @@ export default function BookingDialog({ id, message, busy, onAction, onClose }: 
   onClose: () => void
 }) {
   const canWrite = useCan('bookings:write')
+  const canHandover = useCan('handovers:write')
   const canSeePrices = useCan('pricing:write')
   const size = useBreakpointValue({ base: 'full', md: 'xl' }) ?? 'xl'
   const full = size === 'full'
 
   const { data: b, isPending, error } = useQuery({ queryKey: ['bookings', id], queryFn: () => fetchBooking(id) })
   const boleh = b ? allowedActions(b) : null
-  const adaAksi = canWrite && boleh !== null && (boleh.confirm || boleh.swap || boleh.cancel)
+  const handover = canHandover && boleh !== null && (boleh.pickup || boleh.return)
+  const adaAksi = (canWrite && boleh !== null && (boleh.confirm || boleh.swap || boleh.cancel)) || handover
 
   return (
     <Modal isOpen onClose={onClose} size={size} isCentered={!full} scrollBehavior="inside">
@@ -88,20 +92,31 @@ export default function BookingDialog({ id, message, busy, onAction, onClose }: 
                 </>
               )}
               {b.status === 'cancelled' && <Baris label="Dibatalkan">{b.cancelled_reason === 'manual' ? 'oleh petugas' : 'otomatis oleh sistem'}</Baris>}
+              {b.actual_return_at && <Baris label="Dikembalikan">{formatDateTime(b.actual_return_at)}</Baris>}
             </SimpleGrid>
+          )}
+          {b && <InvoiceSummary bookingId={b.id} />}
+          {b && (b.status === 'picked_up' || b.status === 'returned' || b.status === 'completed') && (
+            <HandoverGallery bookingId={b.id} />
           )}
         </ModalBody>
 
         {b && adaAksi && boleh && (
-          <ModalFooter gap="10px" borderTopWidth="1px" borderColor="border.subtle"
+          <ModalFooter gap="10px" flexWrap="wrap" borderTopWidth="1px" borderColor="border.subtle"
             pb={full ? 'calc(16px + env(safe-area-inset-bottom))' : undefined}>
-            {boleh.cancel && (
+            {canWrite && boleh.cancel && (
               <Button variant="outline" colorScheme="red" onClick={() => onAction('cancel', b)} isDisabled={busy}>Batalkan</Button>
             )}
             <Box flex="1" />
-            {boleh.swap && <Button variant="outline" onClick={() => onAction('swap', b)}>Tukar unit</Button>}
-            {boleh.confirm && (
+            {canWrite && boleh.swap && <Button variant="outline" onClick={() => onAction('swap', b)}>Tukar unit</Button>}
+            {canWrite && boleh.confirm && (
               <Button variant="brand" isLoading={busy} onClick={() => onAction('confirm', b)}>Konfirmasi</Button>
+            )}
+            {canHandover && boleh.pickup && (
+              <Button variant="brand" onClick={() => onAction('pickup', b)}>Serah-terima ambil</Button>
+            )}
+            {canHandover && boleh.return && (
+              <Button variant="brand" onClick={() => onAction('return', b)}>Terima kembali</Button>
             )}
           </ModalFooter>
         )}

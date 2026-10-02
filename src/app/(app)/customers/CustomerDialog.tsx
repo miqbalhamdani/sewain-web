@@ -20,8 +20,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { SelectField } from 'components/fields/SelectField'
+
 import { api, fieldErrors } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
+
+import { IdentityPhotoField } from './IdentityPhotoField'
 
 type Customer = components['schemas']['Customer']
 type IdType = components['schemas']['IdType']
@@ -139,6 +142,7 @@ export default function CustomerDialog({
               </FormHelperText>
             </FormControl>
           </SimpleGrid>
+          {customer !== null && <IdentityPhotoField customer={customer} idType={idType} />}
         </ModalBody>
         <ModalFooter gap="12px">
           <Button type="button" variant="outline" onClick={onClose} isDisabled={simpan.isPending}>Batal</Button>

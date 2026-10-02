@@ -3,13 +3,14 @@
 import { useToast } from '@chakra-ui/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState, type ReactNode } from 'react'
 
 import { api, problemCode } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
 
 type Booking = components['schemas']['Booking']
-export type BookingAction = 'confirm' | 'swap' | 'cancel'
+export type BookingAction = 'confirm' | 'swap' | 'cancel' | 'pickup' | 'return'
 
 const SwapDialog = dynamic(() => import('./SwapDialog'))
 const ConfirmDialog = dynamic(
@@ -17,12 +18,18 @@ const ConfirmDialog = dynamic(
   { ssr: false },
 )
 
-/** Aksi yang boleh untuk status ini (BR-029: tukar hilang begitu `picked_up`). */
+/**
+ * Aksi yang boleh untuk status ini (BR-029: tukar hilang begitu `picked_up`).
+ * Ambil juga terbuka untuk `no_show` -- penyewa yang datang terlambat tidak
+ * ditolak langsung (BR-057).
+ */
 export function allowedActions(b: Pick<Booking, 'status'>): Record<BookingAction, boolean> {
   return {
     confirm: b.status === 'draft',
     swap: b.status === 'reserved',
     cancel: b.status === 'draft' || b.status === 'reserved',
+    pickup: b.status === 'reserved' || b.status === 'no_show',
+    return: b.status === 'picked_up',
   }
 }
 
@@ -36,6 +43,7 @@ export function allowedActions(b: Pick<Booking, 'status'>): Record<BookingAction
  */
 export function useBookingActions({ onError }: { onError: (bookingId: string, message: string) => void }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const toast = useToast()
   const [swapping, setSwapping] = useState<Booking | null>(null)
   const [cancelling, setCancelling] = useState<Booking | null>(null)
@@ -72,7 +80,10 @@ export function useBookingActions({ onError }: { onError: (bookingId: string, me
   })
 
   function start(kind: BookingAction, booking: Booking) {
-    if (kind === 'confirm') aksi.mutate({ jenis: 'confirm', booking })
+    // Serah-terima adalah alur layar penuh, bukan dialog: kamera, odometer,
+    // dan tombol di bawah ibu jari (S1-037).
+    if (kind === 'pickup' || kind === 'return') router.push(`/bookings/${booking.id}/${kind}`)
+    else if (kind === 'confirm') aksi.mutate({ jenis: 'confirm', booking })
     else if (kind === 'swap') setSwapping(booking)
     else setCancelling(booking)
   }

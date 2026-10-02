@@ -99,6 +99,8 @@ function BookingsList() {
   })
 
   const canWrite = useCan('bookings:write')
+
+  const canHandover = useCan('handovers:write')
   const [status, setStatus] = useState('')
   const [overdue, setOverdue] = useState(false)
   const [rentang, setRentang] = useState<DateRange>({ from: '', to: '' })
@@ -271,6 +273,8 @@ function BookingsList() {
                               <MenuItem onClick={() => aksi.start('confirm', b)} isDisabled={aksi.pending}>Konfirmasi</MenuItem>
                             )}
                             {canWrite && boleh.swap && <MenuItem onClick={() => aksi.start('swap', b)}>Tukar unit</MenuItem>}
+                            {canHandover && boleh.pickup && <MenuItem onClick={() => aksi.start('pickup', b)}>Serah-terima ambil</MenuItem>}
+                            {canHandover && boleh.return && <MenuItem onClick={() => aksi.start('return', b)}>Terima kembali</MenuItem>}
                             {canWrite && boleh.cancel && (
                               <>
                                 <MenuDivider />
