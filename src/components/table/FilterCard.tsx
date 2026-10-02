@@ -1,12 +1,18 @@
 'use client'
 
-import { Button, Card, Flex } from '@chakra-ui/react'
+import { SearchIcon } from '@chakra-ui/icons'
+import { Box, Button, Card, Flex } from '@chakra-ui/react'
 import type { PropsWithChildren } from 'react'
 
 type FilterCardProps = PropsWithChildren<{
   /** Berapa saring yang benar-benar sedang memotong daftar. */
   activeCount: number
   onReset: () => void
+  /**
+   * Ada = saring ditahan sampai "Cari" (atau Enter) ditekan. Untuk daftar yang
+   * besar: tiap ketikan dan tiap centang tidak memicu satu request.
+   */
+  onSubmit?: () => void
 }>
 
 /**
@@ -30,19 +36,43 @@ type FilterCardProps = PropsWithChildren<{
  * seluruh penyaringan di sini berubah diam-diam jadi "cari di halaman yang
  * kebetulan termuat" -- dan saat itu ia harus pindah ke server.
  */
-export function FilterCard({ activeCount, onReset, children }: FilterCardProps) {
+export function FilterCard({ activeCount, onReset, onSubmit, children }: FilterCardProps) {
+  const aktif = activeCount > 0
   return (
-    <Card variant="section" mb="20px">
-      {children}
+    <Card variant="section" mb="20px" {...(onSubmit ? {
+      as: 'form',
+      onSubmit: (e: React.FormEvent) => { e.preventDefault(); onSubmit() },
+    } : {})}>
+      <Flex direction={{ base: 'column', md: 'row' }} align={{ md: 'flex-end' }} gap={{ base: '0', md: '20px' }}>
+        <Box flex="1" minW="0">{children}</Box>
 
-      {/* Hanya muncul kalau ada yang benar-benar menyaring. */}
-      {activeCount > 0 && (
-        <Flex justify="flex-end">
-          <Button type="button" variant="link" size="sm" colorScheme="brand" onClick={onReset}>
-            Bersihkan semua filter
+        {/* Hanya muncul kalau ada yang benar-benar menyaring. Di desktop ruangnya
+            tetap dipesan, supaya field-nya tidak melebar-menyempit tiap kali
+            saring pertama dipasang; di HP ia memang tidak punya baris. */}
+        <Button
+          type="button"
+          variant="outline"
+          h="48px"
+          mb="20px"
+          px="20px"
+          borderRadius="16px"
+          flexShrink={0}
+          onClick={onReset}
+          aria-label="Reset semua filter"
+          aria-hidden={!aktif}
+          tabIndex={aktif ? 0 : -1}
+          visibility={aktif ? 'visible' : 'hidden'}
+          display={{ base: aktif ? 'inline-flex' : 'none', md: 'inline-flex' }}
+        >
+          Reset ({activeCount})
+        </Button>
+        {onSubmit && (
+          <Button type="submit" variant="brand" h="48px" mb="20px" px="24px" borderRadius="16px" flexShrink={0}
+            leftIcon={<SearchIcon boxSize="14px" />}>
+            Cari
           </Button>
-        </Flex>
-      )}
+        )}
+      </Flex>
     </Card>
   )
 }

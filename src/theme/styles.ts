@@ -104,15 +104,18 @@ export const globalStyles = {
       // pernah jadi satu-satunya pembeda: tiap keadaan selain `available` juga
       // punya pola atau border di CalendarGrid, dan tiap blok berlabel teks.
       "calendar.available": { default: "green.50", _dark: "rgba(72, 187, 120, 0.12)" },
-      "calendar.reserved_unpaid": { default: "blue.200", _dark: "blue.600" },
+      "calendar.reserved_unpaid": { default: "blue.100", _dark: "blue.700" },
       "calendar.reserved_paid": { default: "blue.500", _dark: "blue.400" },
-      "calendar.picked_up": { default: "orange.300", _dark: "orange.500" },
-      "calendar.overdue": { default: "red.400", _dark: "red.500" },
-      "calendar.buffer": { default: "gray.300", _dark: "gray.600" },
-      "calendar.maintenance": { default: "gray.800", _dark: "gray.900" },
+      "calendar.reservedBorder": { default: "blue.500", _dark: "blue.300" },
+      "calendar.picked_up": { default: "orange.200", _dark: "orange.500" },
+      "calendar.overdue": { default: "red.500", _dark: "red.500" },
+      "calendar.buffer": { default: "gray.100", _dark: "gray.600" },
+      "calendar.maintenance": { default: "gray.700", _dark: "gray.900" },
       "calendar.ink": { default: "gray.900", _dark: "white" },
       "calendar.inkOnDark": { default: "white", _dark: "white" },
       "calendar.grid": { default: "gray.200", _dark: "whiteAlpha.200" },
+      // Band kolom hari ini — brand #4318FF ber-alpha tipis, overlay di atas blok.
+      "calendar.todayBand": { default: "rgba(67, 24, 255, 0.05)", _dark: "rgba(255, 255, 255, 0.06)" },
     },
   },
   styles: {

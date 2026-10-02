@@ -82,3 +82,15 @@ export function toJakartaLocal(iso: string): string {
 export function formatRange(startIso: string, endIso: string): string {
   return `${formatDateTime(startIso)} – ${formatDateTime(endIso)}`
 }
+
+/** API timestamp → "Sab, 3 Okt 09.00" in Jakarta: short enough for one line of a form. */
+export function formatDayTime(iso: string): string {
+  return new Date(iso).toLocaleString('id-ID', {
+    timeZone: TIMEZONE,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}

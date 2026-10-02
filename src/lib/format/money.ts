@@ -51,7 +51,7 @@ export function parseRupiah(raw: string): number | null {
 }
 
 /** The unit as a juragan reads it, for "Rp 350.000 / hari". */
-const UNIT_LABEL: Record<string, string> = {
+export const UNIT_LABEL: Record<string, string> = {
   hour: 'jam',
   day: 'hari',
   week: 'minggu',

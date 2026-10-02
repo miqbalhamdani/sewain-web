@@ -11,13 +11,16 @@ import { BY_STATE } from './states'
 type Row = components['schemas']['CalendarRow']
 
 export const DAY_MS = 24 * 3600 * 1000
-const COL_W = 40
+// 14 hari pas selebar kartu; di layar sempit kolom berhenti di 44px dan
+// sisa periodenya jadi scroll samping.
+const FIT_DAYS = 14
+const MIN_COL_W = 44
 const ROW_H = 48
 const LABEL_W = 180
 const HEADER_H = 44
 const OVERSCAN = 4
 
-const HARI = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'narrow' })
+const HARI = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'short' })
 const TGL = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric' })
 
 /**
@@ -41,11 +44,12 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState({ left: 0, top: 0, width: 1200, height: 600 })
+  const colW = Math.max(MIN_COL_W, (view.width - LABEL_W) / FIT_DAYS)
 
   useLayoutEffect(() => {
     const el = ref.current
-    if (el) el.scrollLeft = scrollToDay * COL_W
-  }, [scrollToDay, start])
+    if (el) el.scrollLeft = scrollToDay * colW
+  }, [scrollToDay, start, colW])
 
   useEffect(() => {
     const el = ref.current
@@ -61,19 +65,19 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
     }
   }, [])
 
-  const firstDay = Math.max(0, Math.floor(view.left / COL_W) - OVERSCAN)
-  const lastDay = Math.min(days, Math.ceil((view.left + view.width - LABEL_W) / COL_W) + OVERSCAN)
+  const firstDay = Math.max(0, Math.floor(view.left / colW) - OVERSCAN)
+  const lastDay = Math.min(days, Math.ceil((view.left + view.width - LABEL_W) / colW) + OVERSCAN)
   const firstRow = Math.max(0, Math.floor(view.top / ROW_H) - OVERSCAN)
   const lastRow = Math.min(rows.length, Math.ceil((view.top + view.height - HEADER_H) / ROW_H) + OVERSCAN)
   const winFrom = start + firstDay * DAY_MS
   const winTo = start + lastDay * DAY_MS
   const today = Math.floor((Date.now() - start) / DAY_MS)
-  const x = (ms: number) => ((ms - start) / DAY_MS) * COL_W
+  const x = (ms: number) => ((ms - start) / DAY_MS) * colW
 
   return (
     <Box ref={ref} position="relative" overflow="auto" h="min(70vh, 720px)" borderRadius="16px"
       borderWidth="1px" borderColor="calendar.grid" tabIndex={0} aria-label="Kalender ketersediaan per unit">
-      <Box position="relative" w={`${LABEL_W + days * COL_W}px`} h={`${HEADER_H + rows.length * ROW_H}px`}>
+      <Box position="relative" w={`${LABEL_W + days * colW}px`} h={`${HEADER_H + rows.length * ROW_H}px`}>
         {/* Day header, sticky to the top. */}
         <Box position="sticky" top="0" zIndex={3} h={`${HEADER_H}px`} bg="white" _dark={{ bg: 'navy.800' }}>
           <Box position="sticky" left="0" zIndex={4} w={`${LABEL_W}px`} h="100%" bg="white" _dark={{ bg: 'navy.800' }}
@@ -81,11 +85,14 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
           {Array.from({ length: lastDay - firstDay }, (_, i) => {
             const d = firstDay + i
             const t = new Date(start + d * DAY_MS)
+            // Locale-nya tetap id-ID, jadi membandingkan nama harinya aman.
+            const nama = HARI.format(t)
             return (
-              <Box key={d} position="absolute" top="0" left={`${LABEL_W + d * COL_W}px`} w={`${COL_W}px`} h="100%"
+              <Box key={d} position="absolute" top="0" left={`${LABEL_W + d * colW}px`} w={`${colW}px`} h="100%"
                 textAlign="center" pt="4px" borderBottomWidth="1px" borderColor="calendar.grid"
-                fontWeight={d === today ? '700' : '400'} color={d === today ? 'brand.500' : 'text.secondary'} fontSize="xs">
-                <div>{HARI.format(t)}</div>
+                fontWeight={d === today ? '700' : '400'}
+                color={d === today ? 'brand.500' : nama === 'Min' ? 'red.400' : 'text.secondary'} fontSize="xs">
+                <div>{nama}</div>
                 <div>{TGL.format(t)}</div>
               </Box>
             )
@@ -115,7 +122,7 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
                     </Box>
                   )
                   return s.booking ? (
-                    <Link key={s.from} href={`/bookings/${s.booking.id}`}>{block}</Link>
+                    <Link key={s.from} href={`/bookings?id=${s.booking.id}`}>{block}</Link>
                   ) : (
                     <Box key={s.from}>{block}</Box>
                   )
@@ -129,6 +136,14 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
             </Box>
           )
         })}
+
+        {/* Band kolom hari ini: overlay tipis DI ATAS blok (pointerEvents none),
+            di bawah label unit sticky (z2) dan header (z3). */}
+        {today >= 0 && today < days && (
+          <Box aria-hidden position="absolute" top={`${HEADER_H}px`} bottom="0"
+            left={`${LABEL_W + today * colW}px`} w={`${colW}px`}
+            bg="calendar.todayBand" pointerEvents="none" zIndex={1} />
+        )}
       </Box>
     </Box>
   )

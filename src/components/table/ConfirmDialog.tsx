@@ -18,7 +18,6 @@ type ConfirmDialogProps = {
   body: string
   busy?: boolean
   /** Label aksi merusaknya. Default "Hapus", karena itu pemakai pertamanya. */
-  confirmLabel?: string
   onCancel: () => void
   onConfirm: () => void
 }
@@ -34,7 +33,6 @@ export function ConfirmDialog({
   title,
   body,
   busy = false,
-  confirmLabel = 'Hapus',
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -53,11 +51,14 @@ export function ConfirmDialog({
             </Text>
           </AlertDialogBody>
           <AlertDialogFooter gap="12px">
-            <Button ref={cancelRef} variant="brand" onClick={onCancel}>
-              Batal
+            {/* Ya / Tidak, bukan "Batal" / "Batalkan booking": dua kata yang
+                hampir sama di satu dialog adalah cara tercepat menekan yang salah.
+                Judulnya yang menyebut aksinya. */}
+            <Button ref={cancelRef} variant="brand" onClick={onCancel} minW="88px">
+              Tidak
             </Button>
-            <Button variant="outline" colorScheme="red" isLoading={busy} onClick={onConfirm}>
-              {confirmLabel}
+            <Button variant="outline" colorScheme="red" isLoading={busy} onClick={onConfirm} minW="88px">
+              Ya
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

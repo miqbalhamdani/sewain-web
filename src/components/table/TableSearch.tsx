@@ -11,7 +11,7 @@ import {
   Text,
   VisuallyHidden,
 } from '@chakra-ui/react'
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 
 type TableSearchProps = {
   value: string
@@ -19,6 +19,8 @@ type TableSearchProps = {
   placeholder: string
   resultCount: number
   totalCount: number
+  /** Di kiri kotak cari -- mis. tab status. Kosong = kotak cari di kanan sendirian. */
+  leading?: ReactNode
 }
 
 /**
@@ -37,11 +39,13 @@ export function TableSearch({
   placeholder,
   resultCount,
   totalCount,
+  leading,
 }: TableSearchProps) {
   const inputId = useId()
 
   return (
-    <Flex p="16px 20px" justify="flex-end">
+    <Flex p="16px 20px" justify={leading ? 'space-between' : 'flex-end'} align="center" gap="12px" wrap="wrap">
+      {leading}
       <InputGroup maxW={{ base: '100%', md: '320px' }}>
         <InputLeftElement pointerEvents="none" h="100%">
           <SearchIcon color="text.secondary" boxSize="14px" />

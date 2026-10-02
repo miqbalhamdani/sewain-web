@@ -32,6 +32,7 @@ import { useCan } from 'contexts/SessionContext'
 import { api } from 'lib/api/client'
 import { formatRupiah, formatPrice } from 'lib/format/money'
 
+import { resourceQuery, unitsQuery } from './queries'
 import { VEHICLE_TYPES } from './vehiclePresets'
 
 /**
@@ -274,6 +275,16 @@ export default function CatalogPage() {
                     <RowActions
                       label={`Aksi untuk ${resource.name}`}
                       onEdit={canWrite ? () => router.push(`/catalog/${resource.id}`) : undefined}
+                      // Semua peran boleh membuka layar unit; aksi di dalamnya dijaga layar itu sendiri.
+                      extraItems={[{ label: 'Kelola unit', onClick: () => router.push(`/catalog/${resource.id}/units`) }]}
+                      // Data layar unit diambil saat menu dibuka, bukan sesudah pindah
+                      // layar: tanpa ini kunjungan pertama ke tiap barang berkedip
+                      // spinner -> isi, sementara kunjungan kedua mulus dari cache.
+                      onOpen={() => {
+                        router.prefetch(`/catalog/${resource.id}/units`)
+                        void queryClient.prefetchQuery(resourceQuery(resource.id))
+                        void queryClient.prefetchQuery(unitsQuery(resource.id))
+                      }}
                       onDelete={canDelete ? () => hapus.mutate(resource.id) : undefined}
                       deleteTitle={`Hapus ${resource.name}?`}
                       // Bukan basa-basi: server menghapus seluruh unitnya di

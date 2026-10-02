@@ -1,8 +1,8 @@
 'use client'
 
-import { IconButton, Menu, MenuButton, MenuItem, MenuList, Portal } from '@chakra-ui/react'
+import { IconButton, Menu, MenuButton, MenuDivider, MenuItem, MenuList, Portal } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 /**
  * Dimuat saat tombol Hapus ditekan, bukan saat tabelnya dirender.
@@ -32,6 +32,10 @@ type RowActionsProps = {
   onDelete?: () => void
 
   editLabel?: string
+  /** Aksi aman tambahan, di bawah Edit dan di atas garis pemisah Hapus. */
+  extraItems?: { label: string; onClick: () => void }[]
+  /** Dipanggil saat menu dibuka -- tempat mem-prefetch layar tujuan aksinya. */
+  onOpen?: () => void
   deleteTitle: string
   deleteBody: string
   busy?: boolean
@@ -53,20 +57,23 @@ export function RowActions({
   onEdit,
   onDelete,
   editLabel = 'Edit',
+  extraItems = [],
+  onOpen,
   deleteTitle,
   deleteBody,
   busy = false,
 }: RowActionsProps) {
   const [confirming, setConfirming] = useState(false)
 
-  if (onEdit === undefined && onDelete === undefined) return null
+  const adaAman = onEdit !== undefined || extraItems.length > 0
+  if (!adaAman && onDelete === undefined) return null
 
   return (
     <>
       {/* Ke bawah, konsisten dengan SelectField: menu yang membuka ke atas di
           baris terakhir dan ke bawah di baris pertama adalah dua perilaku untuk
           satu kontrol. */}
-      <Menu placement="bottom-end" flip={false}>
+      <Menu placement="bottom-end" flip={false} onOpen={onOpen}>
         <MenuButton
           as={IconButton}
           // Wajib di dalam <form>; tabel ini bukan form, tapi komponennya
@@ -99,6 +106,13 @@ export function RowActions({
                 {editLabel}
               </MenuItem>
             )}
+            {extraItems.map((item) => (
+              <MenuItem key={item.label} onClick={item.onClick} isDisabled={busy}>
+                {item.label}
+              </MenuItem>
+            ))}
+            {/* Garis pemisah: aksi merusak tidak bersebelahan dengan yang aman. */}
+            {adaAman && onDelete !== undefined && <MenuDivider />}
             {onDelete !== undefined && (
               <MenuItem onClick={() => setConfirming(true)} isDisabled={busy} color="red.500">
                 Hapus
@@ -108,19 +122,23 @@ export function RowActions({
         </Portal>
       </Menu>
 
-      {confirming && (
-        <ConfirmDialog
-          isOpen
-          title={deleteTitle}
-          body={deleteBody}
-          busy={busy}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() => {
-            setConfirming(false)
-            onDelete?.()
-          }}
-        />
-      )}
+      {/* Suspense sendiri: render pertama dialog lazy ini menunggu chunk, dan
+          tanpa batas di sini seluruh layar di atasnya ikut hilang sesaat. */}
+      <Suspense fallback={null}>
+        {confirming && (
+          <ConfirmDialog
+            isOpen
+            title={deleteTitle}
+            body={deleteBody}
+            busy={busy}
+            onCancel={() => setConfirming(false)}
+            onConfirm={() => {
+              setConfirming(false)
+              onDelete?.()
+            }}
+          />
+        )}
+      </Suspense>
     </>
   )
 }
@@ -131,7 +149,7 @@ export function RowActions({
  * Bukan dari `react-icons`: satu ikon dari barrel `react-icons/md` berharga
  * ~2 kB di sini -- kecil, tapi tiga lingkaran memang tidak butuh dependensi.
  */
-function TigaTitik() {
+export function TigaTitik() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <circle cx="10" cy="4" r="1.6" />

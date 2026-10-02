@@ -29,7 +29,13 @@ type Customer = components['schemas']['Customer']
  * menjaga. Alasan wajib: operator yang ditolak sistem membacanya, dan blokir
  * tanpa alasan tidak bisa dijelaskan ke penyewanya.
  */
-export default function BlacklistDialog({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+export default function BlacklistDialog({ customer, isOpen = true, onClose, onCloseComplete }: {
+  customer: Customer
+  isOpen?: boolean
+  onClose: () => void
+  /** Sesudah animasi tutup selesai -- lihat hooks/useDialogState. */
+  onCloseComplete?: () => void
+}) {
   const queryClient = useQueryClient()
   const blokir = !customer.is_blacklisted
   const [alasan, setAlasan] = useState('')
@@ -52,7 +58,7 @@ export default function BlacklistDialog({ customer, onClose }: { customer: Custo
   })
 
   return (
-    <Modal isOpen onClose={onClose} isCentered>
+    <Modal isOpen={isOpen} onClose={onClose} onCloseComplete={onCloseComplete} isCentered>
       <ModalOverlay />
       <ModalContent borderRadius="20px" as="form"
         onSubmit={(e) => {
@@ -79,9 +85,9 @@ export default function BlacklistDialog({ customer, onClose }: { customer: Custo
           )}
         </ModalBody>
         <ModalFooter gap="12px">
-          <Button variant="brand" onClick={onClose}>Batal</Button>
-          <Button type="submit" variant="outline" colorScheme={blokir ? 'red' : 'brand'} isLoading={kirim.isPending}>
-            {blokir ? 'Blokir' : 'Buka blokir'}
+          <Button type="button" variant="brand" onClick={onClose} minW="88px">Tidak</Button>
+          <Button type="submit" variant="outline" colorScheme={blokir ? 'red' : 'brand'} isLoading={kirim.isPending} minW="88px">
+            Ya
           </Button>
         </ModalFooter>
       </ModalContent>

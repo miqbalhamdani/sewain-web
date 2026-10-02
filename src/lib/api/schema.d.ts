@@ -475,7 +475,8 @@ export interface paths {
          * Penyewa di usaha ini
          * @description Semua peran (`customers:read`). Urut terbaru dulu, paginasi cursor.
          *     `q` mencocokkan nama atau telepon — yang dipakai form booking untuk memilih
-         *     penyewa sambil mengetik.
+         *     penyewa sambil mengetik. `blacklisted=true` hanya yang diblokir, `false` hanya
+         *     yang tidak; tanpa parameter, keduanya.
          */
         get: operations["listCustomers"];
         put?: never;
@@ -618,6 +619,11 @@ export interface paths {
          *     `from`/`to` menyaring booking yang **beririsan** dengan rentang itu, bukan yang
          *     mulai di dalamnya. `overdue=true` adalah kondisi turunan — `picked_up` dan
          *     `end_at < now()` — bukan status (BR-041); ia tidak ada di enum `status`.
+         *
+         *     `unit_id`, `customer_id`, dan `resource_id` boleh diulang
+         *     (`?customer_id=a&customer_id=b`) dan berarti "salah satu dari ini". `code`
+         *     mencocokkan **potongan teks** tanpa membedakan huruf besar-kecil; tidak ada karakter
+         *     wildcard — `%` dan `_` dicari apa adanya.
          */
         get: operations["listBookings"];
         put?: never;
@@ -2329,6 +2335,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                blacklisted?: boolean;
                 /** @description Ukuran halaman. Berpasangan dengan `cursor`; tidak ada `offset` di API ini. */
                 limit?: components["parameters"]["Limit"];
                 /**
@@ -2557,8 +2564,10 @@ export interface operations {
                 status?: components["schemas"]["BookingStatus"];
                 from?: string;
                 to?: string;
-                unit_id?: string;
-                customer_id?: string;
+                unit_id?: string[];
+                customer_id?: string[];
+                resource_id?: string[];
+                code?: string;
                 overdue?: boolean;
                 /** @description Ukuran halaman. Berpasangan dengan `cursor`; tidak ada `offset` di API ini. */
                 limit?: components["parameters"]["Limit"];

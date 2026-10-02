@@ -5,27 +5,29 @@ import {
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  Badge,
   Box,
   Button,
   Card,
   Flex,
   FormControl,
-  FormErrorMessage,
   FormLabel,
   Input,
   List,
   ListItem,
-  Radio,
-  RadioGroup,
   SimpleGrid,
+  Skeleton,
   Spinner,
   Stack,
   Text,
+  useRadioGroup,
 } from '@chakra-ui/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { useDeferredValue, useRef, useState } from 'react'
+import { Suspense, useDeferredValue, useRef, useState } from 'react'
+
+import { DateRangeField, type DateRange } from 'components/fields/DateRangeField'
 
 import { FormSection } from 'components/fields/FormSection'
 import { SelectField } from 'components/fields/SelectField'
@@ -34,21 +36,24 @@ import { useCan } from 'contexts/SessionContext'
 import { useIdempotencyKey } from 'hooks/useIdempotencyKey'
 import { api, problemCode } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
-import { formatRange, fromJakartaLocal, toJakartaLocal } from 'lib/format/datetime'
-import { formatPrice, formatRupiah } from 'lib/format/money'
+import { formatDayTime, formatRange, fromISODate, fromJakartaLocal, toJakartaLocal } from 'lib/format/datetime'
+import { formatPrice, formatRupiah, UNIT_LABEL } from 'lib/format/money'
+
+import { UNIT_GRID, UnitCard, unitName } from '../UnitCard'
 
 type Customer = components['schemas']['Customer']
 type Conflict = components['schemas']['AffectedBooking']
 
 const CustomerDialog = dynamic(() => import('../../customers/CustomerDialog'))
 
-/** Besok 09:00 dan lusa 09:00 WIB -- titik awal yang paling sering benar. */
-function defaultRange(): [string, string] {
+/** Besok dan lusa di Jakarta, jam 09.00 -- titik awal yang paling sering benar. */
+function defaultRange(): DateRange {
   const besok = new Date(Date.now() + 24 * 3600 * 1000)
-  const d = toJakartaLocal(besok.toISOString()).slice(0, 10)
-  const lusa = toJakartaLocal(new Date(besok.getTime() + 24 * 3600 * 1000).toISOString()).slice(0, 10)
-  return [`${d}T09:00`, `${lusa}T09:00`]
+  const from = toJakartaLocal(besok.toISOString()).slice(0, 10)
+  const to = toJakartaLocal(new Date(besok.getTime() + 24 * 3600 * 1000).toISOString()).slice(0, 10)
+  return { from, to }
 }
+
 
 /**
  * Form booking.  (S1-029)
@@ -63,14 +68,22 @@ export default function NewBookingPage() {
   const router = useRouter()
   const canSeePrices = useCan('pricing:write')
   const [idemKey, renewKey] = useIdempotencyKey()
-  const startRef = useRef<HTMLInputElement>(null)
+  // Ref di Box pembungkus, bukan di tombol pemetik: PopoverTrigger membaca
+  // `element.ref` anaknya, dan React 19 memperingatkan itu.
+  const tanggalRef = useRef<HTMLDivElement>(null)
 
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [cari, setCari] = useState('')
   const q = useDeferredValue(cari.trim())
   const [dialogBaru, setDialogBaru] = useState(false)
 
-  const [[mulai, selesai], setRentang] = useState(defaultRange)
+  const [tanggal, setTanggal] = useState(defaultRange)
+  const [jamMulai, setJamMulai] = useState('09:00')
+  const [jamSelesai, setJamSelesai] = useState('09:00')
+  // Tanggal dari pemetik + jam dari kotaknya = nilai yang sama yang dulu ditulis
+  // <input type="datetime-local">, jadi semua di bawah ini tidak berubah.
+  const mulai = tanggal.from !== '' && jamMulai !== '' ? `${tanggal.from}T${jamMulai}` : ''
+  const selesai = tanggal.to !== '' && jamSelesai !== '' ? `${tanggal.to}T${jamSelesai}` : ''
   const [unitId, setUnitId] = useState('')
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null)
   const [error, setError] = useState<{ field?: string; message: string } | null>(null)
@@ -114,7 +127,7 @@ export default function NewBookingPage() {
       if (error) throw error
       return data
     },
-    onSuccess: (b) => router.push(`/bookings/${b.id}`),
+    onSuccess: (b) => router.replace(`/bookings?id=${b.id}`),
     onError: (problem) => {
       // The server stores a 4xx under this key and replays it for every later
       // submit with the same key -- so once it has ANSWERED, the next submit
@@ -144,14 +157,31 @@ export default function NewBookingPage() {
     },
   })
 
-  function ubahRentang(a: string, b: string) {
-    setRentang([a, b])
+  function ubahJadwal(next: { tanggal?: DateRange; jamMulai?: string; jamSelesai?: string }) {
+    if (next.tanggal) setTanggal(next.tanggal)
+    if (next.jamMulai !== undefined) setJamMulai(next.jamMulai)
+    if (next.jamSelesai !== undefined) setJamSelesai(next.jamSelesai)
     setUnitId('')
     setConflicts(null)
     setError(null)
   }
 
   const bisaSimpan = customer !== null && !customer.is_blacklisted && unitId !== '' && rentangSah
+
+  // Yang masih punya unit kosong di atas; yang penuh cukup disebut namanya.
+  const adaKosong = tersedia.data?.filter((a) => a.available_units.length > 0) ?? []
+  const penuh = tersedia.data?.filter((a) => a.available_units.length === 0) ?? []
+  const pilihan = adaKosong.flatMap((a) => a.available_units.map((u) => ({ a, u }))).find((x) => x.u.id === unitId)
+  const durasi = tersedia.data?.[0]
+  const salahJadwal = error?.field === 'end'
+    ? error.message
+    : mulai !== '' && selesai !== '' && !rentangSah ? 'Kembali harus setelah ambil.' : undefined
+
+  const unitGroup = useRadioGroup({
+    name: 'unit',
+    value: unitId,
+    onChange: (v) => { setUnitId(v); setConflicts(null) },
+  })
 
   return (
     <PageShell title="Buat booking" width="form" breadcrumb={[{ label: 'Booking', href: '/bookings' }]}>
@@ -204,59 +234,88 @@ export default function NewBookingPage() {
           )}
         </FormSection>
 
-        <FormSection title="Jadwal" description="Waktu WIB. Selesai jam 10.00 dan mulai jam 10.00 tidak bentrok.">
-          <SimpleGrid columns={{ base: 1, md: 2 }} gap="0px 20px">
-            <FormControl mb="16px">
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color="text.primary">Mulai</FormLabel>
-              <Input ref={startRef} type="datetime-local" value={mulai} onChange={(e) => ubahRentang(e.target.value, selesai)} />
+        <FormSection title="Jadwal" description="Waktu WIB. Kembali jam 10.00 dan ambil jam 10.00 tidak bentrok.">
+          <SimpleGrid columns={{ base: 2, md: 4 }} gap="0px 16px">
+            <Box gridColumn="span 2" ref={tanggalRef}>
+              <DateRangeField label="Tanggal sewa" value={tanggal} placeholder="Pilih tanggal ambil – kembali"
+                clearable={false} minDate={fromISODate(defaultRange().from) ?? undefined}
+                error={salahJadwal} onChange={(t) => ubahJadwal({ tanggal: t })} />
+            </Box>
+            <FormControl mb="20px">
+              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color="text.primary">Jam ambil</FormLabel>
+              <Input type="time" value={jamMulai} onChange={(e) => ubahJadwal({ jamMulai: e.target.value })} />
             </FormControl>
-            <FormControl mb="16px" isInvalid={(mulai !== '' && selesai !== '' && !rentangSah) || error?.field === 'end'}>
-              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color="text.primary">Selesai</FormLabel>
-              <Input type="datetime-local" value={selesai} onChange={(e) => ubahRentang(mulai, e.target.value)} />
-              <FormErrorMessage>{error?.field === 'end' ? error.message : 'Selesai harus setelah mulai.'}</FormErrorMessage>
+            <FormControl mb="20px">
+              <FormLabel ms="4px" fontSize="sm" fontWeight="500" color="text.primary">Jam kembali</FormLabel>
+              <Input type="time" value={jamSelesai} onChange={(e) => ubahJadwal({ jamSelesai: e.target.value })} />
             </FormControl>
           </SimpleGrid>
+          {rentangSah && (
+            <Text fontSize="sm" color="text.secondary" mt="-4px" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              {durasi && (
+                <Text as="span" fontWeight="700" color="text.primary">
+                  {durasi.duration_qty} {UNIT_LABEL[durasi.resource.pricing_unit] ?? durasi.resource.pricing_unit} ·{' '}
+                </Text>
+              )}
+              ambil {formatDayTime(fromJakartaLocal(mulai))} → kembali {formatDayTime(fromJakartaLocal(selesai))} WIB
+            </Text>
+          )}
         </FormSection>
 
-        <FormSection title="Unit" description="Hanya unit yang kosong di jadwal itu, jeda bersih-bersih ikut dihitung.">
-          {!rentangSah && <Text fontSize="sm" color="text.secondary">Isi jadwal dulu.</Text>}
-          {rentangSah && tersedia.isPending && <Spinner size="sm" />}
+        <FormSection title="Unit" description="Hanya unit yang kosong di jadwal itu. Jeda bersih-bersih ikut dihitung.">
+          {!rentangSah && <Text fontSize="sm" color="text.secondary">Pilih tanggal dulu.</Text>}
+          {rentangSah && tersedia.isPending && (
+            <SimpleGrid templateColumns={UNIT_GRID} gap="12px">
+              {[0, 1, 2].map((i) => <Skeleton key={i} h="60px" borderRadius="12px" />)}
+            </SimpleGrid>
+          )}
           {tersedia.data?.length === 0 && (
             <Text fontSize="sm" color="text.secondary">Belum ada barang aktif. Tambahkan barang dan unitnya di menu Barang.</Text>
           )}
-          <RadioGroup value={unitId} onChange={(v) => { setUnitId(v); setConflicts(null) }}>
-            <Stack spacing="14px">
-              {tersedia.data?.map((a) => (
-                <Box key={a.resource.id}>
-                  <Flex justify="space-between" mb="6px">
-                    <Text fontWeight="600" color="text.primary">{a.resource.name}</Text>
-                    {canSeePrices && (
-                      <Text fontSize="sm" color="text.secondary">
-                        {formatPrice(a.resource.base_price, a.resource.pricing_unit)} · {a.duration_qty}× = {formatRupiah(a.subtotal)}
-                      </Text>
-                    )}
+          {tersedia.data && tersedia.data.length > 0 && adaKosong.length === 0 && (
+            <Text fontSize="sm" color="text.primary" fontWeight="500">Semua unit penuh di jadwal ini. Coba tanggal lain.</Text>
+          )}
+
+          <Stack spacing="24px" {...unitGroup.getRootProps()}>
+            {adaKosong.map((a) => (
+              <Box key={a.resource.id}>
+                <Flex justify="space-between" align="baseline" gap="12px" mb="10px" wrap="wrap">
+                  <Flex align="center" gap="8px">
+                    <Text fontWeight="700" color="text.primary">{a.resource.name}</Text>
+                    <Badge colorScheme="green" textTransform="none" fontWeight="600">
+                      {a.available_units.length} unit kosong
+                    </Badge>
                   </Flex>
-                  {a.available_units.length === 0 ? (
-                    <Text fontSize="sm" color="text.secondary">Penuh di jadwal ini.</Text>
-                  ) : a.available_units.length > 12 ? (
-                    // A fleet of 200 is 200 radios; past a dozen a picker reads
-                    // faster than a wall of them.
-                    <SelectField label={`${a.available_units.length} unit kosong`}
-                      value={a.available_units.some((u) => u.id === unitId) ? unitId : ''}
-                      onChange={(v) => { setUnitId(v); setConflicts(null) }}
-                      options={[{ value: '', label: 'Pilih unit' },
-                        ...a.available_units.map((u) => ({ value: u.id, label: u.label ? `${u.label} (${u.code})` : u.code }))]} />
-                  ) : (
-                    <Flex gap="14px" wrap="wrap">
-                      {a.available_units.map((u) => (
-                        <Radio key={u.id} value={u.id}>{u.label ? `${u.label} (${u.code})` : u.code}</Radio>
-                      ))}
-                    </Flex>
+                  {canSeePrices && (
+                    <Text fontSize="sm" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {formatPrice(a.resource.base_price, a.resource.pricing_unit)} × {a.duration_qty} ={' '}
+                      <Text as="span" fontWeight="700" color="text.primary">{formatRupiah(a.subtotal)}</Text>
+                    </Text>
                   )}
-                </Box>
-              ))}
-            </Stack>
-          </RadioGroup>
+                </Flex>
+                {a.available_units.length > 12 ? (
+                  // Armada 200 unit adalah 200 kartu; lewat selusin, pemilih lebih cepat dibaca.
+                  <SelectField label="Pilih unit"
+                    value={a.available_units.some((u) => u.id === unitId) ? unitId : ''}
+                    onChange={(v) => { setUnitId(v); setConflicts(null) }}
+                    options={[{ value: '', label: 'Pilih unit' },
+                      ...a.available_units.map((u) => ({ value: u.id, label: u.label ? `${u.label} (${u.code})` : u.code }))]} />
+                ) : (
+                  <SimpleGrid templateColumns={UNIT_GRID} gap="12px">
+                    {a.available_units.map((u) => (
+                      <UnitCard key={u.id} unit={u} {...unitGroup.getRadioProps({ value: u.id })} />
+                    ))}
+                  </SimpleGrid>
+                )}
+              </Box>
+            ))}
+          </Stack>
+
+          {adaKosong.length > 0 && penuh.length > 0 && (
+            <Text fontSize="sm" color="text.secondary" mt="20px">
+              Penuh di jadwal ini: {penuh.map((a) => a.resource.name).join(', ')}
+            </Text>
+          )}
         </FormSection>
 
         {conflicts !== null && (
@@ -272,7 +331,7 @@ export default function NewBookingPage() {
                   <Button size="sm" variant="outline" onClick={() => { setUnitId(''); setConflicts(null); void tersedia.refetch() }}>
                     Pilih unit lain
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setConflicts(null); startRef.current?.focus() }}>
+                  <Button size="sm" variant="outline" onClick={() => { setConflicts(null); tanggalRef.current?.querySelector('button')?.focus() }}>
                     Ubah tanggal
                   </Button>
                 </Flex>
@@ -284,7 +343,13 @@ export default function NewBookingPage() {
           <Card variant="panel" role="alert" mb="20px"><Text color="text.primary" fontSize="sm">{error.message}</Text></Card>
         )}
 
-        <Flex justify="flex-end" gap="12px">
+        <Flex justify="flex-end" align="center" gap="12px" wrap="wrap">
+          <Text flex="1" flexBasis={{ base: '100%', md: 'auto' }} fontSize="sm" color={pilihan ? 'text.primary' : 'text.secondary'} aria-live="polite"
+            sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {pilihan && `${pilihan.a.resource.name} · ${unitName(pilihan.u)}${canSeePrices ? ` · ${formatRupiah(pilihan.a.subtotal)}` : ''}`}
+            {pilihan && customer === null && ' — pilih penyewanya dulu.'}
+            {!pilihan && !bisaSimpan && 'Pilih penyewa, tanggal, dan unit dulu.'}
+          </Text>
           <Button variant="outline" onClick={() => router.push('/bookings')}>Batal</Button>
           <Button type="submit" variant="brand" isDisabled={!bisaSimpan || conflicts !== null} isLoading={simpan.isPending}>
             Simpan booking
@@ -292,10 +357,16 @@ export default function NewBookingPage() {
         </Flex>
       </Box>
 
-      {dialogBaru && (
-        <CustomerDialog isOpen onClose={() => setDialogBaru(false)} customer={null}
-          onSaved={(c) => { setCustomer(c); setCari('') }} />
-      )}
+      {/* Suspense sendiri per dialog lazy: render pertamanya menunggu chunk, dan
+          tanpa batas di sini yang ikut menunggu adalah batas terdekat di atas --
+          seluruh isi layar hilang sesaat. */}
+      <Suspense fallback={null}>
+        {dialogBaru && (
+          <CustomerDialog isOpen onClose={() => setDialogBaru(false)} customer={null}
+            onSaved={(c) => { setCustomer(c); setCari('') }} />
+        )}
+      </Suspense>
     </PageShell>
   )
 }
+

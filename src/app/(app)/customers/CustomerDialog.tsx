@@ -51,9 +51,12 @@ export default function CustomerDialog({
   onClose,
   customer,
   onSaved,
+  onCloseComplete,
 }: {
   isOpen: boolean
   onClose: () => void
+  /** Sesudah animasi tutup selesai -- lihat hooks/useDialogState. */
+  onCloseComplete?: () => void
   customer: Customer | null
   onSaved?: (c: Customer) => void
 }) {
@@ -99,7 +102,7 @@ export default function CustomerDialog({
   })
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} isCentered size="xl" scrollBehavior="outside"
+    <Modal isOpen={isOpen} onClose={onClose} onCloseComplete={onCloseComplete} isCentered size="xl" scrollBehavior="outside"
       closeOnOverlayClick={name === '' && phone === ''}>
       <ModalOverlay />
       <ModalContent borderRadius="20px" as="form"

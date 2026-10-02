@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   Icon,
   Popover,
@@ -30,6 +31,13 @@ type DateRangeFieldProps = {
   value: DateRange
   onChange: (value: DateRange) => void
   helper?: string
+  error?: string
+  /** Hari sebelum ini tidak bisa dipilih. */
+  minDate?: Date
+  /** Teks saat kosong. Default-nya bahasa saringan. */
+  placeholder?: string
+  /** Tombol ✕ untuk mengosongkan. Form yang wajib berisi rentang mematikannya. */
+  clearable?: boolean
 }
 
 /**
@@ -40,7 +48,10 @@ type DateRangeFieldProps = {
  * menangkap pointer kalendernya. Bedanya satu prop, `selectRange`, jadi satu
  * kalender memilih dua tanggal alih-alih dua pemetik terpisah.
  */
-export function DateRangeField({ label, value, onChange, helper }: DateRangeFieldProps) {
+export function DateRangeField({
+  label, value, onChange, helper, error, minDate,
+  placeholder = 'Semua tanggal', clearable = true,
+}: DateRangeFieldProps) {
   const labelId = useId()
   const { isOpen, onOpen, onClose } = useDisclosure()
 
@@ -50,7 +61,7 @@ export function DateRangeField({ label, value, onChange, helper }: DateRangeFiel
   const akhir = fromISODate(value.to)
 
   return (
-    <FormControl mb="20px">
+    <FormControl mb="20px" isInvalid={error !== undefined}>
       <FormLabel id={labelId} ms="4px" fontSize="sm" fontWeight="500" color="text.primary">
         {label}
       </FormLabel>
@@ -73,15 +84,15 @@ export function DateRangeField({ label, value, onChange, helper }: DateRangeFiel
             fontWeight="500"
             color={terisi ? 'text.primary' : 'text.secondary'}
             border="1px solid"
-            borderColor={borderColor}
+            borderColor={error !== undefined ? 'red.500' : borderColor}
             borderRadius="16px"
             _hover={{ borderColor: 'brand.500' }}
             _focusVisible={{ boxShadow: 'outline' }}
           >
             <Text as="span" noOfLines={1}>
-              {terisi ? `${formatDate(value.from)} – ${formatDate(value.to)}` : 'Semua tanggal'}
+              {terisi ? `${formatDate(value.from)} – ${formatDate(value.to)}` : placeholder}
             </Text>
-            {terisi ? (
+            {terisi && clearable ? (
               <Box
                 as="span"
                 role="button"
@@ -117,6 +128,7 @@ export function DateRangeField({ label, value, onChange, helper }: DateRangeFiel
               locale="id-ID"
               view="month"
               selectRange
+              minDate={minDate}
               value={awal !== null && akhir !== null ? [awal, akhir] : null}
               onChange={(next: unknown) => {
                 // selectRange memanggil onChange dua kali: sekali dengan satu
@@ -137,6 +149,7 @@ export function DateRangeField({ label, value, onChange, helper }: DateRangeFiel
         </PopoverContent>
       </Popover>
 
+      <FormErrorMessage ms="4px">{error}</FormErrorMessage>
       {helper !== undefined && (
         <Text fontSize="xs" color="text.secondary" mt="6px" ms="4px">
           {helper}

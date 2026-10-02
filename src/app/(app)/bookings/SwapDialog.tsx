@@ -9,17 +9,18 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Radio,
-  RadioGroup,
-  Spinner,
-  Stack,
+  SimpleGrid,
+  Skeleton,
   Text,
+  useRadioGroup,
 } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { api, problemCode } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
+
+import { UNIT_GRID, UnitCard, unitName } from './UnitCard'
 
 type Booking = components['schemas']['Booking']
 
@@ -30,10 +31,16 @@ type Booking = components['schemas']['Booking']
  * booking ini -- database juga menolak yang lain, jadi ini bukan satu-satunya
  * penjaga, cuma yang membuat penolakan itu tidak pernah terlihat.
  */
-export default function SwapDialog({ booking, onClose }: { booking: Booking; onClose: () => void }) {
+export default function SwapDialog({ booking, onClose, onSwapped }: {
+  booking: Booking
+  onClose: () => void
+  /** Dipanggil dengan nama unit tujuan, untuk toast pemanggilnya. */
+  onSwapped?: (unit: string) => void
+}) {
   const queryClient = useQueryClient()
   const [unitId, setUnitId] = useState('')
   const [error, setError] = useState('')
+  const group = useRadioGroup({ name: 'tukar-unit', value: unitId, onChange: setUnitId })
 
   const pilihan = useQuery({
     queryKey: ['availability', booking.resource.id, booking.start_at, booking.end_at],
@@ -57,6 +64,8 @@ export default function SwapDialog({ booking, onClose }: { booking: Booking; onC
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      const u = pilihan.data?.find((x) => x.id === unitId)
+      onSwapped?.(u ? unitName(u) : '')
       onClose()
     },
     onError: (problem) => {
@@ -79,19 +88,21 @@ export default function SwapDialog({ booking, onClose }: { booking: Booking; onC
         <ModalCloseButton top="16px" right="16px" />
         <ModalBody>
           <Text fontSize="sm" color="text.secondary" mb="14px">
-            Sekarang: {booking.unit.label ?? booking.unit.code}. Harga tidak berubah — jenis barangnya tetap.
+            Sekarang: {unitName(booking.unit)}. Harga tidak berubah — jenis barangnya tetap.
           </Text>
-          {pilihan.isPending && <Spinner size="sm" />}
+          {pilihan.isPending && (
+            <SimpleGrid templateColumns={UNIT_GRID} gap="12px">
+              {[0, 1].map((i) => <Skeleton key={i} h="60px" borderRadius="12px" />)}
+            </SimpleGrid>
+          )}
           {pilihan.data?.length === 0 && (
             <Text fontSize="sm" color="text.secondary">Tidak ada unit {booking.resource.name} lain yang kosong di jadwal ini.</Text>
           )}
-          <RadioGroup value={unitId} onChange={setUnitId}>
-            <Stack>
-              {pilihan.data?.map((u) => (
-                <Radio key={u.id} value={u.id}>{u.label ? `${u.label} (${u.code})` : u.code}</Radio>
-              ))}
-            </Stack>
-          </RadioGroup>
+          <SimpleGrid templateColumns={UNIT_GRID} gap="12px" {...group.getRootProps()}>
+            {pilihan.data?.map((u) => (
+              <UnitCard key={u.id} unit={u} {...group.getRadioProps({ value: u.id })} />
+            ))}
+          </SimpleGrid>
           {error !== '' && <Text role="alert" mt="12px" fontSize="sm" color="red.500">{error}</Text>}
         </ModalBody>
         <ModalFooter gap="12px">

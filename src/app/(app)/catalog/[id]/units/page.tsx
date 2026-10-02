@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useMemo, useRef, useState, type PropsWithChildren } from 'react'
+import { Suspense, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 
 import { EmptyState } from 'components/layout/EmptyState'
 import { PageShell } from 'components/layout/PageShell'
@@ -43,6 +43,8 @@ import { RowActions } from 'components/table/RowActions'
 import { useCan, useSession } from 'contexts/SessionContext'
 import { api } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
+
+import { resourceQuery, unitsQuery } from '../../queries'
 
 
 /**
@@ -125,25 +127,8 @@ export default function UnitsPage() {
   const [warning, setWarning] = useState<{ code: string; bookings: AffectedBooking[] } | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
-  const { data: resource } = useQuery({
-    queryKey: ['resources', id],
-    queryFn: async () => {
-      const { data, error } = await api.GET('/resources/{id}', { params: { path: { id } } })
-      if (error) throw error
-      return data
-    },
-  })
-
-  const { data: units, isPending, error } = useQuery({
-    queryKey: ['resources', id, 'units'],
-    queryFn: async () => {
-      const { data, error } = await api.GET('/resources/{id}/units', {
-        params: { path: { id } },
-      })
-      if (error) throw error
-      return data
-    },
-  })
+  const { data: resource } = useQuery(resourceQuery(id))
+  const { data: units, isPending, error } = useQuery(unitsQuery(id))
 
   /**
    * Batasnya dari unit yang BENAR-BENAR ada, bukan dari `modelYears()`.
@@ -429,15 +414,17 @@ export default function UnitsPage() {
       {/* Dirender hanya saat terbuka supaya state form-nya lahir ulang tiap
           kali: satu komponen untuk tambah dan edit, dan isian unit sebelumnya
           tidak boleh bocor ke unit berikutnya. */}
-      {dialog !== null && (
-        <UnitDialog
-          resourceId={id}
-          isVehicleRental={isVehicleRental}
-          unit={dialog.unit}
-          isOpen
-          onClose={() => setDialog(null)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {dialog !== null && (
+          <UnitDialog
+            resourceId={id}
+            isVehicleRental={isVehicleRental}
+            unit={dialog.unit}
+            isOpen
+            onClose={() => setDialog(null)}
+          />
+        )}
+      </Suspense>
 
       <AlertDialog
         isOpen={warning !== null}

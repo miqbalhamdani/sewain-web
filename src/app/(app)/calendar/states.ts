@@ -20,14 +20,18 @@ export type CalendarState = components['schemas']['CalendarState']
 export const STATES: { state: CalendarState; label: string; short: string; sx: SystemStyleObject; dark?: boolean }[] = [
   { state: 'available', label: 'Tersedia', short: 'Kosong', sx: { bg: 'calendar.available' } },
   {
+    // SATU pembeda non-warna per keadaan, bukan dua-tiga bertumpuk: border
+    // ganda + arsir silang yang lama terbaca sebagai noise, bukan sebagai makna.
     state: 'reserved_unpaid',
     label: 'Dipesan · belum bayar', short: 'Pesan',
-    sx: { bg: 'calendar.reserved_unpaid', border: '2px dashed', borderColor: 'calendar.ink' },
+    sx: { bg: 'calendar.reserved_unpaid', border: '1.5px dashed', borderColor: 'calendar.reservedBorder' },
   },
   {
     state: 'reserved_paid',
     label: 'Dipesan · lunas', short: 'Lunas',
-    sx: { bg: 'calendar.reserved_paid', border: '2px solid', borderColor: 'calendar.ink' },
+    // Solid pekat + teks putih; bedanya dari unpaid bukan cuma warna — unpaid
+    // selalu ber-border putus-putus, lunas polos.
+    sx: { bg: 'calendar.reserved_paid' },
     dark: true,
   },
   {
@@ -36,7 +40,7 @@ export const STATES: { state: CalendarState; label: string; short: string; sx: S
     sx: {
       bg: 'calendar.picked_up',
       backgroundImage:
-        'repeating-linear-gradient(45deg, transparent 0 6px, var(--chakra-colors-whiteAlpha-500) 6px 9px)',
+        'repeating-linear-gradient(45deg, transparent 0 6px, var(--chakra-colors-blackAlpha-200) 6px 9px)',
     },
   },
   {
@@ -44,12 +48,10 @@ export const STATES: { state: CalendarState; label: string; short: string; sx: S
     label: 'Terlambat', short: 'Telat',
     sx: {
       bg: 'calendar.overdue',
-      border: '3px double',
-      borderColor: 'calendar.ink',
       backgroundImage:
-        'repeating-linear-gradient(45deg, transparent 0 5px, var(--chakra-colors-blackAlpha-300) 5px 7px),' +
-        'repeating-linear-gradient(-45deg, transparent 0 5px, var(--chakra-colors-blackAlpha-300) 5px 7px)',
+        'repeating-linear-gradient(45deg, transparent 0 6px, var(--chakra-colors-whiteAlpha-300) 6px 9px)',
     },
+    dark: true,
   },
   {
     state: 'buffer',
@@ -57,7 +59,7 @@ export const STATES: { state: CalendarState; label: string; short: string; sx: S
     sx: {
       bg: 'calendar.buffer',
       backgroundImage:
-        'repeating-linear-gradient(135deg, transparent 0 4px, var(--chakra-colors-blackAlpha-300) 4px 6px)',
+        'repeating-linear-gradient(135deg, transparent 0 3px, var(--chakra-colors-blackAlpha-300) 3px 5px)',
     },
   },
   {
