@@ -947,10 +947,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Invoice satu booking
-         * @description Semua peran (`invoices:read`), **wajib `booking_id`** — daftar penuh lintas
-         *     booking adalah milik owner dan menyusul di M4 (BR-003). Total selalu
-         *     `SUM(lines)`, dihitung saat dibaca (BR-055).
+         * Invoice — per booking, atau daftar penuh untuk owner
+         * @description Dengan `booking_id`: semua peran (`invoices:read`), terlama dulu, satu halaman.
+         *     Tanpa `booking_id`: **daftar penuh lintas booking, hanya `owner`**
+         *     (`reports:read`, BR-003) — terbaru dulu, paginasi cursor, saring `status`.
+         *     Total selalu `SUM(lines)`, dihitung saat dibaca (BR-055).
          */
         get: operations["listInvoices"];
         put?: never;
@@ -974,6 +975,220 @@ export interface paths {
         get: operations["getInvoice"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/deposit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Pratinjau penyelesaian deposit
+         * @description Semua peran (`bookings:read`). Tidak menyimpan apa pun. `deductions` =
+         *     jumlah baris `late_fee` + `damage` yang terbit saat kembali dan belum
+         *     dibatalkan — potongan yang sudah dicentang operator (BR-051).
+         *     Sisa negatif tidak pernah jadi deposit minus: `new_invoice_amount` (BR-048).
+         *     Booking tanpa deposit atau yang depositnya dibebaskan: `deposit_amount: null`
+         *     dan angka lain nol — `complete` tidak diblokir (BR-016).
+         */
+        get: operations["previewDeposit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/deposit/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Selesaikan deposit
+         * @description Semua peran (`bookings:write`). Hanya `returned`, sekali. Deposit **menyerap**
+         *     tagihan kembali: invoice kembali yang belum lunas dibatalkan (barisnya tetap
+         *     jadi rincian), `deposit_deducted` + `deposit_refunded` = `deposit_amount`
+         *     tercatat, dan **hanya selisih kurangnya** terbit sebagai invoice baru (BR-048).
+         *     Pengembalian uangnya sendiri terjadi di luar sistem; yang dicatat jumlahnya.
+         *
+         *     - `note` wajib bila ada potongan (BR-049) → `422 validation-failed`
+         *     - tanpa deposit / sudah dibebaskan → `409 deposit-not-applicable`
+         *     - invoice yang memuat deposit belum lunas → `409 deposit-not-collected`
+         *       — uangnya belum di tangan, jadi tidak ada yang bisa dikembalikan atau dipotong
+         */
+        post: operations["settleDeposit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/deposit/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bebaskan deposit
+         * @description Hanya peran `owner` (`deposits:waive`). Selama invoice yang memuatnya belum
+         *     lunas: baris `deposit` **dicabut**, bukan diimbangi `discount` (BR-050, BR-051).
+         *     Pelaku, waktu, dan alasan tercatat di booking dan di `audit_logs`.
+         *
+         *     - invoice-nya sudah lunas → `409 deposit-already-paid`
+         *     - `reason` kosong → `422 waiver-reason-required`
+         *     - tanpa deposit / sudah dibebaskan → `409 deposit-not-applicable`
+         */
+        post: operations["waiveDeposit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tandai booking selesai
+         * @description Semua peran (`bookings:write`). `returned` → `completed`. Deposit yang ada,
+         *     belum dibebaskan, dan belum diselesaikan → `409 deposit-not-settled` (BR-049).
+         *     Booking tanpa deposit tidak diblokir.
+         */
+        post: operations["completeBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Catat pembayaran tunai atau transfer yang sudah dicek
+         * @description Semua peran (`payments:write`, BR-003). Lunas penuh saja: `amount` wajib sama
+         *     dengan total invoice (BR-060) → selain itu `422`. Pembayaran kedua atas invoice
+         *     yang sama → `409 invoice-already-paid`, juga saat dua permintaan balapan —
+         *     unique index `payments_one_success_per_invoice` yang memutuskan. Invoice
+         *     `cancelled` → `422`.
+         */
+        post: operations["recordPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{id}/proofs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Bukti transfer satu invoice
+         * @description Semua peran (`invoices:read`). URL bertanda tangan berumur 15 menit.
+         */
+        get: operations["listProofs"];
+        put?: never;
+        /**
+         * Serahkan bukti transfer
+         * @description Semua peran (`payments:write`). `object_key` dari `/uploads/presign` dengan
+         *     `kind: payment_proof` (gambar atau PDF); server mem-`HEAD` lalu menyalinnya ke
+         *     `proofs/<owner_id>/<invoice_id>/…` (BR-093). Pembacaan otomatis berjalan
+         *     **asinkron** di worker dan hanya rekomendasi (BR-062) → `202`.
+         *     Fase 1 belum memakai model apa pun: bukti tetap `match_status: null` —
+         *     "belum dibaca, periksa manual".
+         */
+        post: operations["uploadProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/proofs/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setujui bukti — invoice lunas
+         * @description Semua peran (`payments:write`). **Satu-satunya jalan bukti transfer jadi lunas
+         *     adalah manusia menekan ini** (BR-062). Satu transaksi: pembayaran
+         *     `manual_transfer` sebesar total invoice, invoice `paid`, bukti `approved`.
+         *     Invoice sudah lunas → `409 invoice-already-paid`.
+         */
+        post: operations["approveProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/proofs/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tolak bukti transfer
+         * @description Semua peran (`payments:write`). Alasan wajib — penyewa perlu tahu kenapa.
+         */
+        post: operations["rejectProof"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1714,6 +1929,20 @@ export interface components {
         Booking: {
             /**
              * Format: date-time
+             * @description Deposit dibebaskan pemilik sebelum dibayar (BR-051).
+             */
+            deposit_waived_at: string | null;
+            /**
+             * Format: date-time
+             * @description Deposit sudah diselesaikan — syarat `complete` (BR-049).
+             */
+            deposit_settled_at: string | null;
+            /** Format: int64 */
+            deposit_deducted: number;
+            /** Format: int64 */
+            deposit_refunded: number;
+            /**
+             * Format: date-time
              * @description Diisi jam server saat serah-terima kembali (BR-040).
              */
             actual_return_at: string | null;
@@ -1840,11 +2069,14 @@ export interface components {
             };
         };
         /** @enum {string} */
-        UploadKind: "handover_photo" | "identity_photo";
+        UploadKind: "handover_photo" | "identity_photo" | "payment_proof";
         PresignRequest: {
             kind: components["schemas"]["UploadKind"];
-            /** @enum {string} */
-            content_type: "image/jpeg" | "image/png" | "image/webp";
+            /**
+             * @description `application/pdf` hanya untuk `payment_proof`.
+             * @enum {string}
+             */
+            content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
             /** Format: int64 */
             bytes: number;
         };
@@ -1992,6 +2224,81 @@ export interface components {
             handover_photo_id: string | null;
             waiver_reason: string | null;
         };
+        DepositPreview: {
+            /**
+             * Format: int64
+             * @description `null` = tanpa deposit atau dibebaskan; tidak ada yang perlu diselesaikan.
+             */
+            deposit_amount: number | null;
+            /** @description Invoice yang memuat deposit sudah lunas — uangnya di tangan pemilik. */
+            collected: boolean;
+            waived: boolean;
+            /** Format: date-time */
+            settled_at: string | null;
+            /** Format: int64 */
+            deductions: number;
+            /** Format: int64 */
+            refund_amount: number;
+            /** Format: int64 */
+            deducted_amount: number;
+            /** Format: int64 */
+            new_invoice_amount: number;
+        };
+        SettleRequest: {
+            /** @description Wajib bila ada potongan (BR-049). */
+            note?: string;
+        };
+        WaiveRequest: {
+            reason: string;
+        };
+        PaymentRequest: {
+            /** @enum {string} */
+            method: "manual_transfer" | "cash";
+            /** Format: int64 */
+            amount: number;
+            /**
+             * Format: date-time
+             * @description Kapan uangnya diterima; kosong = sekarang.
+             */
+            paid_at?: string;
+        };
+        ProofInput: {
+            object_key: string;
+        };
+        RejectRequest: {
+            reason: string;
+        };
+        PaymentProof: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invoice_id: string;
+            /** @description Bertanda tangan, 15 menit. */
+            url: string;
+            content_type: string;
+            /** @enum {string} */
+            review_status: "pending" | "approved" | "rejected";
+            /**
+             * @description Rekomendasi pembacaan otomatis (BR-062), bukan keputusan. `null` = belum
+             *     dibaca — di fase 1 selalu, karena belum ada model.
+             */
+            match_status: ("match" | "mismatch" | "unreadable") | null;
+            /** Format: int64 */
+            ai_amount: number | null;
+            /** Format: date-time */
+            ai_paid_at: string | null;
+            /** @description Nama yang menyetujui atau menolak. */
+            reviewed_by: string | null;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            reject_reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        InvoicePage: {
+            data: components["schemas"]["Invoice"][];
+            next_cursor: string | null;
+        };
         /**
          * @description Kode error generik yang dipakai setiap endpoint sebelum sampai ke aturan bisnisnya.
          *     Kode spesifik per aturan bisnis ada di `04-api-spec.md` §2 dan ditambahkan oleh item
@@ -2001,7 +2308,7 @@ export interface components {
          *     underscore.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable" | "evidence-immutable" | "upload-not-found" | "upload-type-mismatch" | "handover-photo-required" | "meter-value-required" | "payment-required-before-pickup" | "physical-conflict-unconfirmed" | "waiver-reason-required";
+        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable" | "evidence-immutable" | "upload-not-found" | "upload-type-mismatch" | "handover-photo-required" | "meter-value-required" | "payment-required-before-pickup" | "physical-conflict-unconfirmed" | "waiver-reason-required" | "deposit-not-settled" | "deposit-not-collected" | "invoice-already-paid" | "deposit-already-paid" | "deposit-not-applicable";
         /**
          * @description Satu detail per-field di dalam `Problem`. Ia membawa apa pun yang dibutuhkan kegagalan
          *     spesifiknya, jadi properti tambahan diizinkan secara desain.
@@ -3413,8 +3720,16 @@ export interface operations {
     };
     listInvoices: {
         parameters: {
-            query: {
-                booking_id: string;
+            query?: {
+                booking_id?: string;
+                status?: components["schemas"]["InvoiceStatus"];
+                /** @description Ukuran halaman. Berpasangan dengan `cursor`; tidak ada `offset` di API ini. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Cursor buram dari halaman sebelumnya. Hanya paginasi cursor — `offset` yang dalam di
+                 *     tabel besar adalah sequential scan, jadi parameternya tidak ada.
+                 */
+                cursor?: components["parameters"]["Cursor"];
             };
             header?: never;
             path?: never;
@@ -3422,13 +3737,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Invoice booking itu, terlama dulu. */
+            /** @description Satu halaman invoice. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Invoice"][];
+                    "application/json": components["schemas"]["InvoicePage"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -3458,6 +3773,309 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    previewDeposit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pratinjau. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepositPreview"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    settleDeposit: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettleRequest"];
+            };
+        };
+        responses: {
+            /** @description Booking sesudah depositnya diselesaikan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    waiveDeposit: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveRequest"];
+            };
+        };
+        responses: {
+            /** @description Booking sesudah depositnya dibebaskan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    completeBooking: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking selesai. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    recordPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Invoice sesudah lunas. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invoice"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    listProofs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bukti, terbaru dulu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProof"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    uploadProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProofInput"];
+            };
+        };
+        responses: {
+            /** @description Bukti tersimpan; pembacaannya menyusul. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProof"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    approveProof: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice sesudah lunas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invoice"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    rejectProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Bukti sesudah ditolak. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProof"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
 }

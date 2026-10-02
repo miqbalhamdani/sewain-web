@@ -10,7 +10,7 @@ import { api, problemCode } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
 
 type Booking = components['schemas']['Booking']
-export type BookingAction = 'confirm' | 'swap' | 'cancel' | 'pickup' | 'return'
+export type BookingAction = 'confirm' | 'swap' | 'cancel' | 'pickup' | 'return' | 'complete'
 
 const SwapDialog = dynamic(() => import('./SwapDialog'))
 const ConfirmDialog = dynamic(
@@ -23,8 +23,14 @@ const ConfirmDialog = dynamic(
  * Ambil juga terbuka untuk `no_show` -- penyewa yang datang terlambat tidak
  * ditolak langsung (BR-057).
  */
-export function allowedActions(b: Pick<Booking, 'status'>): Record<BookingAction, boolean> {
+export function allowedActions(
+  b: Pick<Booking, 'status' | 'deposit_amount' | 'deposit_waived_at' | 'deposit_settled_at'>,
+): Record<BookingAction, boolean> {
   return {
+    // BR-049: not rendered before the deposit is settled -- a button that can
+    // only 409 is not an action. No deposit, or a waived one, never blocks.
+    complete: b.status === 'returned' &&
+      (b.deposit_amount === null || b.deposit_waived_at !== null || b.deposit_settled_at !== null),
     confirm: b.status === 'draft',
     swap: b.status === 'reserved',
     cancel: b.status === 'draft' || b.status === 'reserved',
@@ -57,17 +63,21 @@ export function useBookingActions({ onError }: { onError: (bookingId: string, me
 
   const aksi = useMutation({
     retry: false,
-    mutationFn: async ({ jenis, booking }: { jenis: 'confirm' | 'cancel'; booking: Booking }) => {
+    mutationFn: async ({ jenis, booking }: { jenis: 'confirm' | 'cancel' | 'complete'; booking: Booking }) => {
       const opts = { params: { path: { id: booking.id } } }
       const { error } = jenis === 'confirm'
         ? await api.POST('/bookings/{id}/confirm', opts)
-        : await api.POST('/bookings/{id}/cancel', opts)
+        : jenis === 'complete'
+          ? await api.POST('/bookings/{id}/complete', {
+            params: { path: { id: booking.id }, header: { 'Idempotency-Key': crypto.randomUUID() } } })
+          : await api.POST('/bookings/{id}/cancel', opts)
       if (error) throw error
     },
     onSuccess: (_, { jenis, booking }) => {
       setCancelling(null)
       void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      toast({ status: 'success', duration: 4000, title: `${booking.code} ${jenis === 'confirm' ? 'dikonfirmasi' : 'dibatalkan'}` })
+      toast({ status: 'success', duration: 4000,
+        title: `${booking.code} ${{ confirm: 'dikonfirmasi', cancel: 'dibatalkan', complete: 'selesai' }[jenis]}` })
     },
     onError: (problem, { booking }) => {
       setCancelling(null)
@@ -84,6 +94,7 @@ export function useBookingActions({ onError }: { onError: (bookingId: string, me
     // dan tombol di bawah ibu jari (S1-037).
     if (kind === 'pickup' || kind === 'return') router.push(`/bookings/${booking.id}/${kind}`)
     else if (kind === 'confirm') aksi.mutate({ jenis: 'confirm', booking })
+    else if (kind === 'complete') aksi.mutate({ jenis: 'complete', booking })
     else if (kind === 'swap') setSwapping(booking)
     else setCancelling(booking)
   }

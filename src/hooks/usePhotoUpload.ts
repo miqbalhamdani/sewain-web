@@ -20,7 +20,13 @@ export type PhotoUpload = {
   key?: string
 }
 
-const ALLOWED: ContentType[] = ['image/jpeg', 'image/png', 'image/webp']
+const IMAGES: ContentType[] = ['image/jpeg', 'image/png', 'image/webp']
+// A transfer proof may be a bank's PDF e-statement; a photo never is (S1-046).
+const ALLOWED: Record<UploadKind, ContentType[]> = {
+  handover_photo: IMAGES,
+  identity_photo: IMAGES,
+  payment_proof: [...IMAGES, 'application/pdf'],
+}
 const MAX_BYTES = 10 * 1024 * 1024
 
 /**
@@ -69,7 +75,7 @@ export function usePhotoUpload(kind: UploadKind) {
       const refused: File[] = []
       const fresh: PhotoUpload[] = []
       for (const file of Array.from(files)) {
-        if (!ALLOWED.includes(file.type as ContentType) || file.size > MAX_BYTES) {
+        if (!ALLOWED[kind].includes(file.type as ContentType) || file.size > MAX_BYTES) {
           refused.push(file)
           continue
         }
@@ -79,7 +85,7 @@ export function usePhotoUpload(kind: UploadKind) {
       fresh.forEach((p) => void start(p))
       return refused
     },
-    [start],
+    [kind, start],
   )
 
   const retry = useCallback((id: string) => {

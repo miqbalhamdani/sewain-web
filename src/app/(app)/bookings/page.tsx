@@ -275,6 +275,7 @@ function BookingsList() {
                             {canWrite && boleh.swap && <MenuItem onClick={() => aksi.start('swap', b)}>Tukar unit</MenuItem>}
                             {canHandover && boleh.pickup && <MenuItem onClick={() => aksi.start('pickup', b)}>Serah-terima ambil</MenuItem>}
                             {canHandover && boleh.return && <MenuItem onClick={() => aksi.start('return', b)}>Terima kembali</MenuItem>}
+                            {canWrite && boleh.complete && <MenuItem onClick={() => aksi.start('complete', b)}>Selesaikan</MenuItem>}
                             {canWrite && boleh.cancel && (
                               <>
                                 <MenuDivider />

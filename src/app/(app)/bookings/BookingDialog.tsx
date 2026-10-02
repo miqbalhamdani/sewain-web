@@ -25,6 +25,7 @@ import { api } from 'lib/api/client'
 import { formatDateTime } from 'lib/format/datetime'
 import { formatPrice, formatRupiah } from 'lib/format/money'
 
+import { DepositPanel } from './DepositPanel'
 import { HandoverGallery } from './HandoverGallery'
 import { InvoiceSummary } from './InvoiceSummary'
 import { StatusBadges } from './labels'
@@ -62,7 +63,7 @@ export default function BookingDialog({ id, message, busy, onAction, onClose }: 
   const { data: b, isPending, error } = useQuery({ queryKey: ['bookings', id], queryFn: () => fetchBooking(id) })
   const boleh = b ? allowedActions(b) : null
   const handover = canHandover && boleh !== null && (boleh.pickup || boleh.return)
-  const adaAksi = (canWrite && boleh !== null && (boleh.confirm || boleh.swap || boleh.cancel)) || handover
+  const adaAksi = (canWrite && boleh !== null && (boleh.confirm || boleh.swap || boleh.cancel || boleh.complete)) || handover
 
   return (
     <Modal isOpen onClose={onClose} size={size} isCentered={!full} scrollBehavior="inside">
@@ -96,6 +97,7 @@ export default function BookingDialog({ id, message, busy, onAction, onClose }: 
             </SimpleGrid>
           )}
           {b && <InvoiceSummary bookingId={b.id} />}
+          {b && <DepositPanel booking={b} />}
           {b && (b.status === 'picked_up' || b.status === 'returned' || b.status === 'completed') && (
             <HandoverGallery bookingId={b.id} />
           )}
@@ -109,6 +111,9 @@ export default function BookingDialog({ id, message, busy, onAction, onClose }: 
             )}
             <Box flex="1" />
             {canWrite && boleh.swap && <Button variant="outline" onClick={() => onAction('swap', b)}>Tukar unit</Button>}
+            {canWrite && boleh.complete && (
+              <Button variant="brand" isLoading={busy} onClick={() => onAction('complete', b)}>Selesaikan booking</Button>
+            )}
             {canWrite && boleh.confirm && (
               <Button variant="brand" isLoading={busy} onClick={() => onAction('confirm', b)}>Konfirmasi</Button>
             )}
