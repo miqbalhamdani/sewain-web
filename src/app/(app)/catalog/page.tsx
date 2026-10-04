@@ -32,7 +32,7 @@ import { useCan } from 'contexts/SessionContext'
 import { api } from 'lib/api/client'
 import { formatRupiah, formatPrice } from 'lib/format/money'
 
-import { resourceQuery, unitsQuery } from './queries'
+import { resourceQuery, resourcesQuery, unitsQuery } from './queries'
 import { VEHICLE_TYPES } from './vehiclePresets'
 
 /**
@@ -68,14 +68,7 @@ export default function CatalogPage() {
   // null = belum disentuh, jadi slidernya memakai batas penuh.
   const [harga, setHarga] = useState<[number, number] | null>(null)
 
-  const { data, isPending, error } = useQuery({
-    queryKey: ['resources'],
-    queryFn: async () => {
-      const { data, error } = await api.GET('/resources')
-      if (error) throw error
-      return data
-    },
-  })
+  const { data, isPending, error } = useQuery(resourcesQuery)
 
   /**
    * Batas slider diturunkan dari katalogmu sendiri, dibulatkan ke 50rb.

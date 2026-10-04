@@ -17,6 +17,15 @@ export const resourceQuery = (id: string) => ({
   },
 })
 
+export const resourcesQuery = {
+  queryKey: ['resources'],
+  queryFn: async () => {
+    const { data, error } = await api.GET('/resources')
+    if (error) throw error
+    return data
+  },
+}
+
 export const unitsQuery = (id: string) => ({
   queryKey: ['resources', id, 'units'],
   queryFn: async () => {

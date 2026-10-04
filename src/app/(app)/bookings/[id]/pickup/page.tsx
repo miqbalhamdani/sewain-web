@@ -56,7 +56,7 @@ export default function PickupPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      router.push(`/bookings?id=${id}`)
+      router.push(`/bookings/${id}`)
     },
     onError: (problem) => {
       const code = problemCode(problem)
@@ -96,7 +96,7 @@ export default function PickupPage() {
 
   return (
     <PageShell title={`Ambil ${b.code}`} width="form-aside"
-      breadcrumb={[{ label: 'Booking', href: '/bookings' }, { label: b.code, href: `/bookings?id=${id}` }]}>
+      breadcrumb={[{ label: 'Booking', href: '/bookings' }, { label: b.code, href: `/bookings/${id}` }]}>
       {/* Satu baris konteks, bukan kartu: di desktop dua kolom di bawah harus
           muat tanpa scroll, dan tiap kartu ekstra adalah ~90px yang hilang. */}
       <Text fontSize="sm" color="text.secondary" mb="12px">

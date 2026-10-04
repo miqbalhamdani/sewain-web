@@ -18,7 +18,7 @@ function SidebarContent(props: SidebarContentProps) {
 		<Flex direction='column' height='100%' pt='25px' borderRadius='30px'>
 			<Brand />
 			<Stack direction='column' mt='8px' mb='auto'>
-				<Box ps='20px' pe={{ lg: '16px', '2xl': '16px' }}>
+				<Box ps='20px'>
 					<Links routes={routes} />
 				</Box>
 			</Stack>

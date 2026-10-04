@@ -22,6 +22,8 @@ export const menuStyles = {
           bg: "transparent",
           color: mode("navy.700", "white")(props),
           fontSize: "sm",
+          // Baris menu adalah sasaran sentuh juga: 44px, bukan 30px bawaan.
+          minH: "44px",
           _hover: { bg: mode("secondaryGray.300", "whiteAlpha.100")(props) },
           _focus: { bg: mode("secondaryGray.300", "whiteAlpha.100")(props) },
         },

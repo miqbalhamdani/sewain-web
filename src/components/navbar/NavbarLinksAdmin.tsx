@@ -82,8 +82,9 @@ export default function HeaderLinks({ secondary }: { secondary: boolean }) {
             name={user?.name ?? ''}
             bg="#11047A"
             size="sm"
-            w="40px"
-            h="40px"
+            // 44px: sasaran sentuh minimum, sama dengan tombol lain (HIG/WCAG).
+            w="44px"
+            h="44px"
           />
         </MenuButton>
         <MenuList boxShadow={shadow} p="0px" mt="10px" borderRadius="20px" bg={menuBg} border="none">

@@ -106,10 +106,10 @@ export default function ReturnPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      // Ke daftar, bukan ke modal detail: pekerjaannya selesai, toast yang
-      // mengabarkan. Detailnya tetap satu klik dari daftar.
+      // Ke halaman detail: langkah berikutnya -- menyelesaikan deposit atau
+      // menutup booking -- ada di sana, dan toast cuma mengabarkan.
       toast({ status: 'success', duration: 4000, title: `${ctx.booking?.code ?? 'Booking'}: unit diterima kembali` })
-      router.push('/bookings')
+      router.push(`/bookings/${id}`)
     },
     onError: (problem) => {
       const code = problemCode(problem)
@@ -159,7 +159,7 @@ export default function ReturnPage() {
 
   return (
     <PageShell title={`Kembali ${b.code}`} width="form-aside"
-      breadcrumb={[{ label: 'Booking', href: '/bookings' }, { label: b.code, href: `/bookings?id=${id}` }]}>
+      breadcrumb={[{ label: 'Booking', href: '/bookings' }, { label: b.code, href: `/bookings/${id}` }]}>
       <Text fontSize="sm" color="text.secondary" mb="12px">
         <Text as="span" fontWeight="700" color="text.primary">{b.customer.name}</Text>
         {' · '}{b.resource.name} · {b.unit.label ? `${b.unit.label} (${b.unit.code})` : b.unit.code}

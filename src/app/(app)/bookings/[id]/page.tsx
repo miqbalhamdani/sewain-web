@@ -1,11 +1,24 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useParams, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+
+import { BookingDetail } from './BookingDetail'
 
 /**
- * Alamat lama satu booking. Detailnya sekarang modal di atas daftar
- * (`/bookings?id=…`); alamat ini tetap hidup supaya tautan yang sudah tersebar
- * -- dan alur serah-terima M3 -- punya tujuan yang stabil.
+ * Satu booking, sebagai halaman.  (S1-029, S1-032)
+ *
+ * Dulu alamat ini cuma mengalihkan ke modal di atas daftar (`/bookings?id=…`).
+ * Sekarang ia halamannya sendiri -- alasannya di BookingDetail -- dan tautan
+ * lama yang sudah tersebar tetap mendarat di tempat yang benar.
  */
-export default async function BookingRedirect({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  redirect(`/bookings?id=${encodeURIComponent(id)}`)
+export default function BookingPage() {
+  // useSearchParams menuntut Suspense di atasnya saat `next build`.
+  return <Suspense><Detail /></Suspense>
+}
+
+function Detail() {
+  const { id } = useParams<{ id: string }>()
+  const err = useSearchParams().get('err')
+  return <BookingDetail id={id} initialError={err} />
 }

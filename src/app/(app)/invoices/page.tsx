@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 import { SelectField } from 'components/fields/SelectField'
-import { INVOICE_STATUS } from 'components/invoice/status'
+import { INVOICE_STATUS, invoicePurpose } from 'components/invoice/status'
 import { EmptyState } from 'components/layout/EmptyState'
 import { PageShell } from 'components/layout/PageShell'
 import { api } from 'lib/api/client'
@@ -55,14 +55,20 @@ export default function InvoicesPage() {
       )}
       {!query.isPending && (rows.length > 0 || status !== '') && (
         <Card variant="table">
-          <Table variant="simple" minW="640px">
-            <Thead><Tr><Th>Nomor</Th><Th>Status</Th><Th>Tenggat / lunas</Th><Th isNumeric>Total</Th></Tr></Thead>
+          <Table variant="simple" minW="820px">
+            <Thead><Tr><Th>Nomor</Th><Th>Penyewa</Th><Th>Untuk</Th><Th>Status</Th><Th>Tenggat / lunas</Th><Th isNumeric>Total</Th></Tr></Thead>
             <Tbody>
               {rows.map((inv) => {
                 const s = INVOICE_STATUS[inv.status] ?? { label: inv.status, scheme: 'gray' }
                 return (
                   <Tr key={inv.id} _hover={{ bg: 'surface.hover' }}>
-                    <Td><Link href={`/bookings?id=${inv.booking_id}`}><Text fontWeight="600" color="text.primary" whiteSpace="nowrap">{inv.number}</Text></Link></Td>
+                    <Td><Link href={`/bookings/${inv.booking_id}`}><Text fontWeight="600" color="text.primary" whiteSpace="nowrap">{inv.number}</Text></Link></Td>
+                    <Td>
+                      {/* null hanya untuk invoice langganan (BR-082), belum ada di fase 1. */}
+                      <Text fontSize="sm" color="text.primary">{inv.customer?.name ?? '—'}</Text>
+                      {inv.customer && <Text fontSize="xs" color="text.secondary">{inv.customer.phone}</Text>}
+                    </Td>
+                    <Td fontSize="sm" color="text.secondary">{invoicePurpose(inv.lines)}</Td>
                     <Td><Badge colorScheme={s.scheme}>{s.label}</Badge></Td>
                     <Td fontSize="sm" color="text.secondary">{inv.paid_at ? `Lunas ${formatDateTime(inv.paid_at)}` : formatDateTime(inv.due_at)}</Td>
                     <Td isNumeric fontWeight="600" color="text.primary">{formatRupiah(inv.total)}</Td>

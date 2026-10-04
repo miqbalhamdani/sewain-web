@@ -40,14 +40,28 @@ export function allowedActions(
 }
 
 /**
- * Konfirmasi, tukar unit, dan batalkan -- satu tempat untuk menu baris dan
- * modal detail, supaya pesan error dan dialog konfirmasinya tidak ditulis dua kali.
+ * Kalimat untuk kode gagal aksi. Dipakai halaman detail langsung, dan daftar
+ * lewat `?err=<kode>` saat mengantar ke sana -- satu sumber untuk dua jalur.
  *
- * Gagal TIDAK berakhir sebagai toast: pesannya dikembalikan lewat `onError` dan
- * pemanggil membuka modal booking itu, karena "unit sudah dipakai booking lain"
- * butuh konteks, bukan kotak yang hilang dalam lima detik.
+ * Konfirmasi menjalankan ulang cek bentrok (BR-026): draft tidak pernah
+ * menahan unit, jadi ia bisa kalah dari booking yang datang belakangan.
  */
-export function useBookingActions({ onError }: { onError: (bookingId: string, message: string) => void }) {
+export function actionErrorMessage(code: string): string {
+  return code === 'booking-conflict'
+    ? 'Unit ini sudah dipakai booking lain di jadwal yang sama. Tukar unit dulu, atau batalkan draft ini.'
+    : 'Aksi gagal. Coba lagi.'
+}
+
+/**
+ * Konfirmasi, tukar unit, batalkan, selesaikan -- satu tempat untuk menu baris
+ * dan halaman detail, supaya dialog konfirmasinya tidak ditulis dua kali.
+ *
+ * Gagal TIDAK berakhir sebagai toast: kodenya dikembalikan lewat `onError`.
+ * Halaman detail menampilkannya di samping bookingnya; daftar mengantar ke
+ * halaman itu. "Unit sudah dipakai booking lain" butuh konteks, bukan kotak
+ * yang hilang dalam lima detik.
+ */
+export function useBookingActions({ onError }: { onError: (bookingId: string, code: string) => void }) {
   const queryClient = useQueryClient()
   const router = useRouter()
   const toast = useToast()
@@ -81,11 +95,7 @@ export function useBookingActions({ onError }: { onError: (bookingId: string, me
     },
     onError: (problem, { booking }) => {
       setCancelling(null)
-      // Konfirmasi menjalankan ulang cek bentrok (BR-026): draft tidak pernah
-      // menahan unit, jadi ia bisa kalah dari booking yang datang belakangan.
-      onError(booking.id, problemCode(problem) === 'booking-conflict'
-        ? 'Unit ini sudah dipakai booking lain di jadwal yang sama. Tukar unit dulu, atau batalkan draft ini.'
-        : 'Aksi gagal. Coba lagi.')
+      onError(booking.id, problemCode(problem))
     },
   })
 
@@ -121,9 +131,9 @@ export function useBookingActions({ onError }: { onError: (bookingId: string, me
     </Suspense>
   )
 
-  // Satu modal pada satu waktu: Chakra tidak menumpuk aria-hidden dua modal
+  // Satu dialog pada satu waktu: Chakra tidak menumpuk aria-hidden dua modal
   // dengan benar ("aria-hidden … not contained inside …"), dan dua overlay
-  // bertumpuk terlihat sebagai kedip. Pemanggil menyembunyikan modal detail
-  // selama `active`.
-  return { start, pending: aksi.isPending, active: swapping !== null || cancelling !== null, dialogs }
+  // bertumpuk terlihat sebagai kedip. Dua dialog di sini saling eksklusif
+  // lewat `start`; detail booking sendiri sudah halaman, bukan modal.
+  return { start, pending: aksi.isPending, dialogs }
 }

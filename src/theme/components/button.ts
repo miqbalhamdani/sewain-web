@@ -23,6 +23,15 @@ export const buttonStyles = {
       // kosong menampilkan tombol yang tingginya beda dari yang muncul begitu
       // ada satu baris data.
       sizes: {
+        // 44px adalah sasaran sentuh minimum (HIG/WCAG), dan `size="sm"` dipakai
+        // untuk tombol aksi di kartu tagihan dan deposit -- yang ditekan juragan
+        // di HP, di parkiran. Bawaan Chakra 32px terlalu kecil untuk itu.
+        sm: {
+          h: "44px",
+          minW: "44px",
+          fontSize: "sm",
+          px: "16px",
+        },
         lg: {
           h: "46px",
           minW: "46px",

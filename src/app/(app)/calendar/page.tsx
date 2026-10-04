@@ -4,13 +4,17 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons'
 import { Box, Button, Card, Flex, IconButton, Spinner, Text, Wrap, WrapItem } from '@chakra-ui/react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
+import { MultiSelectField } from 'components/fields/MultiSelectField'
+import type { SelectOption } from 'components/fields/SelectField'
 import { EmptyState } from 'components/layout/EmptyState'
 import { PageShell } from 'components/layout/PageShell'
 import { api } from 'lib/api/client'
 
-import { CalendarGrid, DAY_MS } from './CalendarGrid'
+import { resourcesQuery } from '../catalog/queries'
+
+import { CalendarGrid, DAY_MS, type CalendarGroup } from './CalendarGrid'
 import { STATES } from './states'
 
 const TGL_AWAL = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'short', day: 'numeric', month: 'short' })
@@ -61,6 +65,9 @@ export default function CalendarPage() {
   const to = periodStart(jendela + 6)
   const days = Math.round((to - from) / DAY_MS)
 
+  const resources = useQuery(resourcesQuery)
+  const [barang, setBarang] = useState<SelectOption[]>([])
+
   const { data, isPending, isFetching, error } = useQuery({
     queryKey: ['calendar', from],
     placeholderData: keepPreviousData,
@@ -81,6 +88,22 @@ export default function CalendarPage() {
 
   const scrollToDay = (periode - jendela) * 7
 
+  // Dikelompokkan per barang, disaring di klien: seluruh jendela sudah ada di
+  // memori dari satu GET /calendar, jadi menyaring tidak menyentuh server.
+  const groups = useMemo<CalendarGroup[]>(() => {
+    if (!data) return []
+    const nama = new Map((resources.data ?? []).map((r) => [r.id, r.name]))
+    const pilih = new Set(barang.map((o) => o.value))
+    const byId = new Map<string, typeof data>()
+    for (const row of data) {
+      if (pilih.size > 0 && !pilih.has(row.resource_id)) continue
+      byId.set(row.resource_id, [...(byId.get(row.resource_id) ?? []), row])
+    }
+    return [...byId.entries()]
+      .map(([id, rows]) => ({ id, name: nama.get(id) ?? '…', rows }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'id'))
+  }, [data, resources.data, barang])
+
   return (
     <PageShell title="Kalender" subtitle="Satu lajur per unit. Klik blok booking untuk membukanya.">
       <Flex align="center" gap="10px" mb="16px">
@@ -95,16 +118,23 @@ export default function CalendarPage() {
 
       {/* The legend is always on screen (BR-033 rule 2): every state with its
           own swatch, drawn with the same pattern as the blocks. */}
-      <Card variant="section" mb="16px" p="12px 16px">
-        <Wrap spacing="14px" as="ul" aria-label="Legenda keadaan">
-          {STATES.map((s) => (
-            <WrapItem key={s.state} as="li" alignItems="center" gap="6px">
-              <Box w="26px" h="16px" borderRadius="4px" sx={s.sx} aria-hidden />
-              <Text fontSize="xs" color="text.primary">{s.label}</Text>
-            </WrapItem>
-          ))}
-        </Wrap>
-      </Card>
+      <Flex gap="16px" align="flex-start" wrap="wrap" mb="16px">
+        <Card variant="section" p="12px 16px" flex="1" minW="280px">
+          <Wrap spacing="14px" as="ul" aria-label="Legenda keadaan">
+            {STATES.map((s) => (
+              <WrapItem key={s.state} as="li" alignItems="center" gap="6px">
+                <Box w="26px" h="16px" borderRadius="4px" sx={s.sx} aria-hidden />
+                <Text fontSize="xs" color="text.primary">{s.label}</Text>
+              </WrapItem>
+            ))}
+          </Wrap>
+        </Card>
+        <Box w={{ base: '100%', md: '280px' }}>
+          <MultiSelectField label="Barang" placeholder="Semua barang" value={barang} onChange={setBarang}
+            options={(resources.data ?? []).map((r) => ({ value: r.id, label: r.name }))}
+            isLoading={resources.isPending} />
+        </Box>
+      </Flex>
 
       {isPending && <Flex py="60px" justify="center"><Spinner size="lg" color="brand.500" thickness="3px" /></Flex>}
       {error !== null && !isPending && (
@@ -117,7 +147,10 @@ export default function CalendarPage() {
           action={<Flex justify="center"><Button as={Link} href="/catalog" variant="brand">Ke daftar barang</Button></Flex>}
         />
       )}
-      {data && data.length > 0 && <CalendarGrid rows={data} start={from} days={days} scrollToDay={scrollToDay} />}
+      {data && data.length > 0 && groups.length === 0 && (
+        <Card variant="panel"><Text fontSize="sm" color="text.primary">Tidak ada lajur untuk barang itu.</Text></Card>
+      )}
+      {groups.length > 0 && <CalendarGrid groups={groups} start={from} days={days} scrollToDay={scrollToDay} />}
     </PageShell>
   )
 }

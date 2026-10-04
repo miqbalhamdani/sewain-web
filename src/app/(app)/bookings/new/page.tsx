@@ -127,7 +127,7 @@ export default function NewBookingPage() {
       if (error) throw error
       return data
     },
-    onSuccess: (b) => router.replace(`/bookings?id=${b.id}`),
+    onSuccess: (b) => router.replace(`/bookings/${b.id}`),
     onError: (problem) => {
       // The server stores a 4xx under this key and replays it for every later
       // submit with the same key -- so once it has ANSWERED, the next submit

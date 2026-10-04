@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Flex, Image, SimpleGrid, Spinner, Text } from '@chakra-ui/react'
+import { Box, Flex, Heading, Image, SimpleGrid, Spinner, Text } from '@chakra-ui/react'
 
 import { PhotoLightbox, type LightboxPhoto } from 'components/handover/PhotoLightbox'
 import { useDialogState } from 'hooks/useDialogState'
@@ -32,8 +32,8 @@ export function HandoverGallery({ bookingId }: { bookingId: string }) {
   })
 
   return (
-    <Box mt="24px">
-      <Text fontWeight="700" color="text.primary" mb="8px">Bukti kondisi</Text>
+    <Box>
+      <Heading as="h2" size="sm" mb="12px">Bukti kondisi</Heading>
       {isPending && <Spinner size="sm" />}
       {data?.length === 0 && <Text fontSize="sm" color="text.secondary">Belum ada serah-terima.</Text>}
       {data?.map((h) => (
@@ -43,7 +43,7 @@ export function HandoverGallery({ bookingId }: { bookingId: string }) {
             <Text fontSize="xs" color="text.secondary">{formatDateTime(h.performed_at)} · {h.performed_by}</Text>
           </Flex>
           {(h.meter_value !== null || Object.keys(h.checklist).length > 0) && (
-            <Text fontSize="xs" color="text.secondary" mb="6px">
+            <Text fontSize="sm" color="text.secondary" mb="6px">
               {[h.meter_value !== null ? `Odometer ${h.meter_value.toLocaleString('id-ID')} km` : null,
                 ...Object.entries(h.checklist).map(([k, v]) => `${k.replace('_', ' ')}: ${String(v)}`)]
                 .filter(Boolean).join(' · ')}
@@ -51,7 +51,7 @@ export function HandoverGallery({ bookingId }: { bookingId: string }) {
           )}
           {h.condition_notes && <Text fontSize="sm" color="text.primary" mb="6px">{h.condition_notes}</Text>}
           {h.waiver_reason && (
-            <Text fontSize="xs" color="text.secondary" mb="6px">Denda dibebaskan: {h.waiver_reason}</Text>
+            <Text fontSize="sm" color="text.secondary" mb="6px">Denda dibebaskan: {h.waiver_reason}</Text>
           )}
           <SimpleGrid columns={{ base: 3, md: 4 }} gap="6px">
             {h.photos.map((p) => (

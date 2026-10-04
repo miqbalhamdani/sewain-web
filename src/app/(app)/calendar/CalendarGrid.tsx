@@ -1,14 +1,21 @@
 'use client'
 
-import { Box, Text } from '@chakra-ui/react'
+import { Box, Flex, Text } from '@chakra-ui/react'
 import Link from 'next/link'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { components } from 'lib/api/schema'
 
 import { BY_STATE } from './states'
 
 type Row = components['schemas']['CalendarRow']
+
+/** Satu barang beserta lajur unit-unitnya, sudah tersaring & terurut. */
+export type CalendarGroup = { id: string; name: string; rows: Row[] }
+
+type Baris =
+  | { kind: 'header'; id: string; name: string; count: number }
+  | { kind: 'lane'; row: Row }
 
 export const DAY_MS = 24 * 3600 * 1000
 // 14 hari pas selebar kartu; di layar sempit kolom berhenti di 44px dan
@@ -34,14 +41,21 @@ const TGL = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'n
  * ponytail: hand-rolled windowing, ~40 lines; swap in @tanstack/react-virtual
  * if scroll ever janks at 200 x 365 on a low-end phone.
  */
-export function CalendarGrid({ rows, start, days, scrollToDay }: {
-  rows: Row[]
+export function CalendarGrid({ groups, start, days, scrollToDay }: {
+  groups: CalendarGroup[]
   /** Jakarta midnight of day 0, as epoch ms. */
   start: number
   days: number
   /** Changing this scrolls the grid so that day is at the left edge. */
   scrollToDay: number
 }) {
+  // Kepala barang dan lajur unit di SATU daftar rata bertinggi seragam, supaya
+  // matematika windowing-nya tidak berubah.
+  const baris = useMemo<Baris[]>(() => groups.flatMap((g): Baris[] => [
+    { kind: 'header', id: g.id, name: g.name, count: g.rows.length },
+    ...g.rows.map((row): Baris => ({ kind: 'lane', row })),
+  ]), [groups])
+
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState({ left: 0, top: 0, width: 1200, height: 600 })
   const colW = Math.max(MIN_COL_W, (view.width - LABEL_W) / FIT_DAYS)
@@ -68,7 +82,7 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
   const firstDay = Math.max(0, Math.floor(view.left / colW) - OVERSCAN)
   const lastDay = Math.min(days, Math.ceil((view.left + view.width - LABEL_W) / colW) + OVERSCAN)
   const firstRow = Math.max(0, Math.floor(view.top / ROW_H) - OVERSCAN)
-  const lastRow = Math.min(rows.length, Math.ceil((view.top + view.height - HEADER_H) / ROW_H) + OVERSCAN)
+  const lastRow = Math.min(baris.length, Math.ceil((view.top + view.height - HEADER_H) / ROW_H) + OVERSCAN)
   const winFrom = start + firstDay * DAY_MS
   const winTo = start + lastDay * DAY_MS
   const today = Math.floor((Date.now() - start) / DAY_MS)
@@ -77,7 +91,7 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
   return (
     <Box ref={ref} position="relative" overflow="auto" h="min(70vh, 720px)" borderRadius="16px"
       borderWidth="1px" borderColor="calendar.grid" tabIndex={0} aria-label="Kalender ketersediaan per unit">
-      <Box position="relative" w={`${LABEL_W + days * colW}px`} h={`${HEADER_H + rows.length * ROW_H}px`}>
+      <Box position="relative" w={`${LABEL_W + days * colW}px`} h={`${HEADER_H + baris.length * ROW_H}px`}>
         {/* Day header, sticky to the top. */}
         <Box position="sticky" top="0" zIndex={3} h={`${HEADER_H}px`} bg="white" _dark={{ bg: 'navy.800' }}>
           <Box position="sticky" left="0" zIndex={4} w={`${LABEL_W}px`} h="100%" bg="white" _dark={{ bg: 'navy.800' }}
@@ -99,8 +113,27 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
           })}
         </Box>
 
-        {rows.slice(firstRow, lastRow).map((row, i) => {
+        {baris.slice(firstRow, lastRow).map((b, i) => {
           const r = firstRow + i
+          if (b.kind === 'header') {
+            return (
+              <Box key={`h-${b.id}`} position="absolute" top={`${HEADER_H + r * ROW_H}px`} left="0" w="100%"
+                h={`${ROW_H}px`} bg="gray.50" _dark={{ bg: 'whiteAlpha.50' }}
+                borderBottomWidth="1px" borderColor="calendar.grid">
+                <Flex position="sticky" left="0" zIndex={2} w={`${LABEL_W}px`} h="100%" px="12px"
+                  align="center" gap="6px" borderRightWidth="1px" borderColor="calendar.grid">
+                  <Link href={`/catalog/${b.id}`}>
+                    <Text as="span" fontSize="sm" fontWeight="700" color="text.primary" noOfLines={1}
+                      _hover={{ textDecoration: 'underline' }}>
+                      {b.name}
+                    </Text>
+                  </Link>
+                  <Text fontSize="xs" color="text.secondary" whiteSpace="nowrap">· {b.count} unit</Text>
+                </Flex>
+              </Box>
+            )
+          }
+          const row = b.row
           return (
             <Box key={row.unit.id} position="absolute" top={`${HEADER_H + r * ROW_H}px`} left="0"
               w="100%" h={`${ROW_H}px`} borderBottomWidth="1px" borderColor="calendar.grid">
@@ -122,7 +155,7 @@ export function CalendarGrid({ rows, start, days, scrollToDay }: {
                     </Box>
                   )
                   return s.booking ? (
-                    <Link key={s.from} href={`/bookings?id=${s.booking.id}`}>{block}</Link>
+                    <Link key={s.from} href={`/bookings/${s.booking.id}`}>{block}</Link>
                   ) : (
                     <Box key={s.from}>{block}</Box>
                   )

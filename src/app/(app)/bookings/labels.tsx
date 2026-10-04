@@ -14,7 +14,7 @@ export const STATUS: Record<BookingStatus, { label: string; scheme: string }> = 
   picked_up: { label: 'sedang disewa', scheme: 'orange' },
   returned: { label: 'sudah kembali', scheme: 'teal' },
   completed: { label: 'selesai', scheme: 'green' },
-  cancelled: { label: 'batal', scheme: 'gray' },
+  cancelled: { label: 'batal', scheme: 'red' },
   no_show: { label: 'tidak datang', scheme: 'gray' },
 }
 

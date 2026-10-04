@@ -1983,6 +1983,23 @@ export interface components {
             expires_at: string | null;
             /** Format: date-time */
             created_at: string;
+            payment: components["schemas"]["BookingPayment"];
+        };
+        /**
+         * @description Ringkasan bayar booking ini, **dihitung saat dibaca** — seperti `overdue`
+         *     (BR-041) dan total invoice (BR-055), tidak pernah disimpan. Invoice
+         *     `cancelled` diabaikan; `gateway_pending` terhitung belum bayar — uang yang
+         *     belum terkonfirmasi bukan uang. Booking `draft`/`cancelled`/`no_show`,
+         *     atau tanpa invoice aktif → `none`.
+         */
+        BookingPayment: {
+            /** @enum {string} */
+            status: "none" | "unpaid" | "overdue" | "paid";
+            /**
+             * Format: int64
+             * @description SUM baris dari invoice berstatus belum lunas. 0 kalau tidak ada.
+             */
+            outstanding: number;
         };
         BookingCustomer: {
             /** Format: uuid */
@@ -2198,6 +2215,11 @@ export interface components {
             booking_id: string;
             /** @example SWN-0042/1 */
             number: string;
+            /**
+             * @description Penyewa yang ditagih — supaya daftar Tagihan bisa menagih tanpa membuka
+             *     booking-nya. `null` hanya untuk invoice langganan (BR-082), belum ada di fase 1.
+             */
+            customer: components["schemas"]["BookingCustomer"] | null;
             status: components["schemas"]["InvoiceStatus"];
             /** Format: date-time */
             due_at: string;

@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Button, Flex, FormControl, FormLabel, Text, Textarea } from '@chakra-ui/react'
+import { Box, Button, Flex, FormControl, FormLabel, Heading, Text, Textarea } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -61,8 +61,8 @@ export function DepositPanel({ booking }: { booking: Booking }) {
 
   if (p.waived) {
     return (
-      <Box mt="24px">
-        <Text fontWeight="700" color="text.primary" mb="4px">Deposit</Text>
+      <Box>
+        <Heading as="h2" size="sm" tabIndex={-1} mb="6px">Deposit</Heading>
         <Text fontSize="sm" color="text.secondary">Dibebaskan {booking.deposit_waived_at ? formatDateTime(booking.deposit_waived_at) : ''}.</Text>
       </Box>
     )
@@ -73,8 +73,10 @@ export function DepositPanel({ booking }: { booking: Booking }) {
   const canSettleNow = canSettle && booking.status === 'returned' && !settled
 
   return (
-    <Box mt="24px">
-      <Text fontWeight="700" color="text.primary" mb="6px">Deposit {formatRupiah(p.deposit_amount ?? 0)}</Text>
+    <Box>
+      {/* h2 yang bisa difokus: tombol "Selesaikan deposit" di kartu langkah
+          menggulir ke sini dan menaruh fokus di judul ini. */}
+      <Heading as="h2" size="sm" tabIndex={-1} mb="8px">Deposit {formatRupiah(p.deposit_amount ?? 0)}</Heading>
       {settled ? (
         <Text fontSize="sm" color="text.secondary">
           Diselesaikan {formatDateTime(booking.deposit_settled_at!)}: dipotong {formatRupiah(booking.deposit_deducted)},
@@ -107,12 +109,14 @@ export function DepositPanel({ booking }: { booking: Booking }) {
             onClick={() => { setError(''); aksi.mutate('settle') }}>
             Selesaikan deposit
           </Button>
-          {!p.collected && <Text fontSize="xs" color="text.secondary" mt="4px">Bisa diselesaikan setelah deposit dibayar.</Text>}
+          {!p.collected && <Text fontSize="sm" color="text.secondary" mt="4px">Bisa diselesaikan setelah deposit dibayar.</Text>}
         </Box>
       )}
 
       {canWaiveNow && !waiving && (
-        <Button mt="10px" size="sm" variant="link" colorScheme="red" onClick={() => setWaiving(true)}>Bebaskan deposit</Button>
+        // Tombol, bukan tautan: aksi yang menghapus tagihan harus terlihat
+        // sebagai tombol, dan tautan tidak punya sasaran sentuh 44px.
+        <Button mt="10px" size="sm" variant="outline" colorScheme="red" onClick={() => setWaiving(true)}>Bebaskan deposit</Button>
       )}
       {waiving && (
         <Box mt="10px">

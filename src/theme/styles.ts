@@ -92,10 +92,11 @@ export const globalStyles = {
   semanticTokens: {
     colors: {
       "text.primary": { default: "secondaryGray.900", _dark: "white" },
-      // Nilai terangnya sengaja tidak diubah supaya perapian layout ini tidak
-      // ikut menggeser rupa. Yang diperbaiki: dulu ia literal 'gray.400' di
-      // sembilan berkas dan TIDAK ikut berubah di mode gelap sama sekali.
-      "text.secondary": { default: "gray.400", _dark: "whiteAlpha.700" },
+      // gray.600 (#4A5568), bukan gray.400: di atas putih gray.400 cuma ~2,3:1,
+      // di bawah batas 4,5:1 WCAG untuk teks biasa -- dan token ini dipakai
+      // untuk SEMUA label di backoffice, yang sebagian pembacanya sudah
+      // berumur. Nilai gelapnya sudah lolos dari dulu dan tidak disentuh.
+      "text.secondary": { default: "gray.600", _dark: "whiteAlpha.700" },
       "border.subtle": { default: "gray.200", _dark: "whiteAlpha.100" },
       "surface.hover": { default: "secondaryGray.300", _dark: "whiteAlpha.50" },
       "surface.sunken": { default: "secondaryGray.300", _dark: "whiteAlpha.100" },

@@ -93,7 +93,8 @@ export function SidebarLinks(props: SidebarLinksProps) {
                         ? brandColor
                         : 'transparent'
                     }
-                    borderRadius="5px"
+                    // Sisi kanannya menempel di tepi sidebar, jadi hanya kiri yang membulat.
+                    borderRadius="5px 0 0 5px"
                   />
                 </HStack>
               </Box>

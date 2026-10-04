@@ -4,6 +4,9 @@ export const badgeStyles: { components: { Badge: StyleConfig } } = {
     Badge: {
       baseStyle: {
         borderRadius: "10px",
+        // 14px, bukan bawaan 12px: badge membawa status booking dan tagihan,
+        // informasi yang harus terbaca sekali lirik.
+        fontSize: "sm",
         lineHeight: "100%",
         padding: "7px",
         paddingLeft: "12px",

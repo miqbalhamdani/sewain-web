@@ -48,18 +48,18 @@ const routes: IRoute[] = [
     permission: 'bookings:read',
   },
   {
-    name: 'Penyewa',
-    path: '/customers',
-    icon: <Icon as={MdPerson} width="20px" height="20px" color="inherit" />,
-    permission: 'customers:read',
-  },
-  {
     // The full list across bookings is the owner's (BR-003); an operator
     // reaches an invoice through the booking they are serving.
     name: 'Tagihan',
     path: '/invoices',
     icon: <Icon as={MdReceiptLong} width="20px" height="20px" color="inherit" />,
     permission: 'reports:read',
+  },
+  {
+    name: 'Penyewa',
+    path: '/customers',
+    icon: <Icon as={MdPerson} width="20px" height="20px" color="inherit" />,
+    permission: 'customers:read',
   },
   {
     // The one entry BR-003 names explicitly: an operator does not see it at
