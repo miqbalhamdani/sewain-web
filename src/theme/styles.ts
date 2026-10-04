@@ -98,6 +98,10 @@ export const globalStyles = {
       // berumur. Nilai gelapnya sudah lolos dari dulu dan tidak disentuh.
       "text.secondary": { default: "gray.600", _dark: "whiteAlpha.700" },
       "border.subtle": { default: "gray.200", _dark: "whiteAlpha.100" },
+      // Garis yang harus TERLIHAT, bukan sekadar memisahkan: penghubung
+      // stepper, cincin nomor langkah. whiteAlpha.100 di atas kartu gelap
+      // nyaris hilang untuk garis 2px.
+      "border.strong": { default: "gray.300", _dark: "whiteAlpha.400" },
       "surface.hover": { default: "secondaryGray.300", _dark: "whiteAlpha.50" },
       "surface.sunken": { default: "secondaryGray.300", _dark: "whiteAlpha.100" },
 

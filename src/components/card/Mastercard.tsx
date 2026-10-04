@@ -17,7 +17,7 @@ export default function Banner (props: {
   // Chakra Color Mode
   return (
     <Card
-      backgroundImage={bgMastercard}
+      backgroundImage={bgMastercard.src}
       backgroundRepeat='no-repeat'
       bgSize='cover'
       alignSelf='center'

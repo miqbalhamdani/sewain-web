@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { closingNote, nextStep } from './nextStep.ts'
+import { closingNote, nextStep, stepPlan } from './nextStep.ts'
 
 const fmt = (n) => `Rp ${n}`
 const dasar = {
@@ -63,9 +63,61 @@ test('deposit yang menunggu menyebut angkanya', () => {
   // Belum dibayar: settle akan 409, jadi arahnya ke tagihan dulu.
   assert.equal(nextStep(kembali, { deposit: { collected: false, deductions: 0, refund_amount: 0, new_invoice_amount: 0 } }, fmt).action, 'pay')
 
-  // Dibebaskan atau sudah beres: langsung tutup.
-  assert.equal(nextStep({ ...kembali, deposit_waived_at: '2026-10-01T00:00:00Z' }, {}, fmt).action, 'complete')
-  assert.equal(nextStep({ ...kembali, deposit_settled_at: '2026-10-01T00:00:00Z' }, {}, fmt).action, 'complete')
+  // Dibebaskan atau sudah beres, tapi masih ada tagihan terbuka (kekurangan
+  // sesudah settle): bayar dulu, tutup belakangan.
+  const beres = { ...kembali, deposit_settled_at: '2026-10-01T00:00:00Z', payment: belum(100) }
+  assert.equal(nextStep(beres, {}, fmt).action, 'pay')
+  assert.match(nextStep(beres, {}, fmt).label, /kekurangan/)
+  assert.equal(nextStep({ ...kembali, deposit_waived_at: '2026-10-01T00:00:00Z', payment: lunas }, {}, fmt).action, 'complete')
+  assert.equal(nextStep({ ...beres, payment: lunas }, {}, fmt).action, 'complete')
+})
+
+const ringkas = (items) => items.map((i) => `${i.key}:${i.state}`)
+
+test('urutan kerja: dipesan dengan bukti menunggu', () => {
+  const rencana = stepPlan(b({ status: 'reserved', payment: belum(1200), deposit_amount: 500 }),
+    { pendingProofs: 1, pendingProofInvoiceId: 'inv-1' }, fmt)
+  assert.deepEqual(ringkas(rencana), [
+    'bayar:current', 'ambil:upcoming', 'kembali:upcoming', 'deposit:upcoming', 'selesai:upcoming',
+  ])
+  assert.equal(rencana[0].label, 'Pembayaran — sisa Rp 1200')
+  assert.match(rencana[0].note, /bukti transfer/)
+  // Hanya langkah yang berjalan yang membawa kalimat.
+  assert.equal(rencana.filter((i) => i.note).length, 1)
+  // Draft: konfirmasi di depan; tanpa deposit: tidak ada item deposit; batal: kosong.
+  assert.deepEqual(ringkas(stepPlan(b({ status: 'draft' }), {}, fmt)),
+    ['konfirmasi:current', 'bayar:upcoming', 'ambil:upcoming', 'kembali:upcoming', 'selesai:upcoming'])
+  assert.deepEqual(stepPlan(b({ status: 'cancelled' }), {}, fmt), [])
+})
+
+test('urutan kerja: sudah kembali, deposit kurang', () => {
+  const kembali = b({ status: 'returned', deposit_amount: 500, payment: belum(600) })
+  const rencana = stepPlan(kembali, { deposit: { collected: true, deductions: 600, refund_amount: 0, new_invoice_amount: 100 } }, fmt)
+  assert.deepEqual(ringkas(rencana), [
+    'bayar:done', 'ambil:done', 'kembali:done', 'deposit:current', 'kekurangan:upcoming', 'selesai:upcoming',
+  ])
+  assert.match(rencana[3].note, /Invoice baru Rp 100/)
+  assert.equal(rencana[4].label, 'Catat pembayaran kekurangan Rp 100')
+  // Deposit cukup: tidak ada item kekurangan.
+  const cukup = stepPlan(kembali, { deposit: { collected: true, deductions: 200, refund_amount: 300, new_invoice_amount: 0 } }, fmt)
+  assert.ok(!cukup.some((i) => i.key === 'kekurangan'))
+
+  // Sesudah settle: kekurangannya jadi langkah yang berjalan, deposit selesai.
+  const sesudah = stepPlan({ ...kembali, deposit_settled_at: '2026-10-01T00:00:00Z', payment: belum(100) }, {}, fmt)
+  assert.deepEqual(ringkas(sesudah), [
+    'bayar:done', 'ambil:done', 'kembali:done', 'deposit:done', 'kekurangan:current', 'selesai:upcoming',
+  ])
+  assert.equal(sesudah[3].label, 'Deposit diselesaikan')
+  assert.equal(sesudah[4].label, 'Catat pembayaran kekurangan Rp 100')
+
+  // Deposit belum pernah dibayar: item deposit yang berjalan, bukan pembayaran sewa.
+  const belumSetor = stepPlan(kembali, { deposit: { collected: false, deductions: 0, refund_amount: 0, new_invoice_amount: 0 } }, fmt)
+  assert.deepEqual(ringkas(belumSetor), ['bayar:done', 'ambil:done', 'kembali:done', 'deposit:current', 'selesai:upcoming'])
+  assert.match(belumSetor[3].note, /belum pernah dibayar/)
+
+  // Selesai dengan sisa: semua beres kecuali sisa yang berjalan.
+  assert.deepEqual(ringkas(stepPlan(b({ status: 'completed', payment: belum(300) }), {}, fmt)),
+    ['bayar:done', 'ambil:done', 'kembali:done', 'kekurangan:current', 'selesai:done'])
 })
 
 test('kartu penutup hanya untuk yang sudah tertutup', () => {

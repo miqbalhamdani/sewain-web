@@ -117,6 +117,16 @@ export function nextStep(b: StepInput, extra: StepExtra, fmt: (n: number) => str
       const dep = b.deposit_amount
       const depositMenunggu = dep !== null && b.deposit_waived_at === null && b.deposit_settled_at === null
       if (!depositMenunggu) {
+        if (b.payment.outstanding > 0) {
+          // Sesudah settle, kekurangannya adalah invoice baru (BR-048). Menutup
+          // booking dengan tagihan terbuka sah, tapi bukan urutan yang disarankan.
+          return {
+            action: 'pay',
+            label: 'Catat pembayaran kekurangan',
+            anchor: 'tagihan',
+            hint: `Unit sudah kembali, tapi masih ada tagihan ${fmt(b.payment.outstanding)} yang belum dibayar. Catat pembayarannya di bagian Tagihan, lalu tutup booking.`,
+          }
+        }
         return {
           action: 'complete',
           label: 'Selesaikan booking',
@@ -160,6 +170,86 @@ export function nextStep(b: StepInput, extra: StepExtra, fmt: (n: number) => str
     default:
       return null
   }
+}
+
+export type PlanState = 'done' | 'current' | 'upcoming'
+
+export type PlanItem = {
+  key: string
+  /** Nama langkahnya, frasa benda -- tombolnya yang memakai kata kerja. */
+  label: string
+  state: PlanState
+  /** Hanya pada langkah `current`: `hint` dari `nextStep`. */
+  note?: string
+}
+
+/**
+ * Urutan kerja satu booking dari awal sampai tutup, dengan posisi hari ini.
+ *
+ * `nextStep` menjawab "apa yang harus kulakukan sekarang"; daftar ini menjawab
+ * "aku ada di mana, dan apa yang menyusul" -- operator baru di booking yang
+ * sudah kembali tidak tahu bahwa sesudah deposit masih ada kekurangan yang
+ * harus dicatat, lalu booking ditutup. Langkah yang sedang berjalan membawa
+ * kalimat `hint`-nya; yang lain cuma nama.
+ *
+ * Booking batal tidak punya urutan: kartu penutup yang bicara.
+ */
+export function stepPlan(b: StepInput, extra: StepExtra, fmt: (n: number) => string): PlanItem[] {
+  if (b.status === 'cancelled') return []
+  const kini = nextStep(b, extra, fmt)
+  const lewatAmbil = b.status === 'picked_up' || b.status === 'returned' || b.status === 'completed'
+  const lewatKembali = b.status === 'returned' || b.status === 'completed'
+  const lunas = b.payment.status === 'paid'
+  const sisa = b.payment.outstanding
+  const depositBeres = b.deposit_settled_at !== null || b.deposit_waived_at !== null
+  const depositMenunggu = b.deposit_amount !== null && !depositBeres
+
+  // `pay` muncul di tiga tempat berbeda; item mana yang ia tempati bergantung
+  // pada sampai mana bookingnya: sebelum ambil itu pembayaran sewa, sesudah
+  // kembali itu deposit yang belum dibayar, atau kekurangan sesudah deposit.
+  const aktif: string | null = kini === null ? null
+    : kini.action === 'confirm' ? 'konfirmasi'
+    : kini.action === 'pickup' ? 'ambil'
+    : kini.action === 'return' ? 'kembali'
+    : kini.action === 'settle' ? 'deposit'
+    : kini.action === 'complete' ? 'selesai'
+    : !lewatAmbil ? 'bayar'
+    : depositMenunggu ? 'deposit'
+    : 'kekurangan'
+
+  const item = (key: string, label: string, done: boolean): PlanItem =>
+    key === aktif
+      ? { key, label, state: 'current', note: kini?.hint }
+      : { key, label, state: done ? 'done' : 'upcoming' }
+
+  const items: PlanItem[] = []
+  if (b.status === 'draft') items.push(item('konfirmasi', 'Konfirmasi booking', false))
+
+  // Sesudah kembali, urusan sewanya dianggap lewat: sisa yang masih terbuka
+  // adalah urusan deposit atau kekurangan, dan itu item di bawah.
+  const bayarBeres = lunas || lewatKembali
+  items.push(item('bayar',
+    lunas ? 'Pembayaran lunas' : sisa > 0 && !bayarBeres ? `Pembayaran — sisa ${fmt(sisa)}` : 'Pembayaran sewa',
+    bayarBeres))
+  items.push(item('ambil', 'Serah-terima ambil', lewatAmbil))
+  items.push(item('kembali', 'Terima kembali', lewatKembali))
+
+  if (b.deposit_amount !== null) {
+    items.push(item('deposit',
+      b.deposit_waived_at !== null ? 'Deposit dibebaskan' : b.deposit_settled_at !== null ? 'Deposit diselesaikan' : 'Selesaikan deposit',
+      depositBeres))
+  }
+
+  if (aktif === 'kekurangan' && kini) {
+    items.push(item('kekurangan', `${kini.label} ${fmt(sisa)}`, false))
+  } else if (aktif === 'deposit' && extra.deposit && extra.deposit.new_invoice_amount > 0) {
+    // BR-048: potongan melebihi deposit, kekurangannya terbit sebagai invoice
+    // baru saat settle -- jadi sudah bisa dijanjikan sebagai langkah berikutnya.
+    items.push(item('kekurangan', `Catat pembayaran kekurangan ${fmt(extra.deposit.new_invoice_amount)}`, false))
+  }
+
+  items.push(item('selesai', b.status === 'completed' ? 'Booking selesai' : 'Selesaikan booking', b.status === 'completed'))
+  return items
 }
 
 /**

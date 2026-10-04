@@ -29,7 +29,8 @@ import { formatPrice, formatRupiah } from 'lib/format/money'
 import { DepositPanel } from '../DepositPanel'
 import { HandoverGallery } from '../HandoverGallery'
 import { STATUS, StatusBadges } from '../labels'
-import { closingNote, nextStep, type Step } from '../nextStep'
+import { closingNote, nextStep, stepPlan, type Step } from '../nextStep'
+import { StepList } from '../StepList'
 import { actionErrorMessage, allowedActions, useBookingActions, type BookingAction } from '../useBookingActions'
 
 const REMAH = [{ label: 'Booking', href: '/bookings' }]
@@ -41,9 +42,9 @@ const REMAH = [{ label: 'Booking', href: '/bookings' }]
  * bukti transfer, penyelesaian deposit, galeri foto -- dan modal yang memuat
  * form adalah modal yang tertutup tidak sengaja dengan catatan di dalamnya.
  *
- * Disusun untuk juragan yang sebagian sudah berumur: satu langkah berikutnya
- * di paling atas dalam kalimat biasa dengan satu tombol besar, pekerjaan di
- * kolom kiri, konteks di kanan, yang sudah beres dilipat, dan tidak ada
+ * Disusun untuk juragan yang sebagian sudah berumur: urutan kerja di paling
+ * atas -- yang sudah lewat, yang sekarang dengan kalimatnya, yang menyusul --
+ * dengan satu tombol besar di bawahnya, pekerjaan di kolom kiri, konteks di kanan, yang sudah beres dilipat, dan tidak ada
  * dialog di atas dialog. Harga dan deposit tidak dirender untuk operator
  * (BR-003).
  */
@@ -137,11 +138,13 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
 
   const boleh = allowedActions(b)
   const pendingProofs = Object.values(buktiMenunggu).reduce((a, n) => a + n, 0)
-  const langkah = nextStep(b, {
+  const ekstra = {
     deposit,
     pendingProofs,
     pendingProofInvoiceId: belumLunas.find((inv) => (buktiMenunggu[inv.id] ?? 0) > 0)?.id ?? null,
-  }, formatRupiah)
+  }
+  const langkah = nextStep(b, ekstra, formatRupiah)
+  const urutan = stepPlan(b, ekstra, formatRupiah)
   // Slot yang sama: kalau tidak ada langkah, yang tampil adalah penutupnya.
   const penutup = langkah ? null : closingNote(b, formatRupiah)
   const bisa = (s: Step) =>
@@ -208,8 +211,11 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
 
       {langkah && (
         <Card variant="section" mb="20px" borderLeftWidth="4px" borderLeftColor="brand.500">
-          <Heading as="h2" size="sm" mb="6px">Langkah berikutnya</Heading>
-          <Text color="text.primary" mb="16px">{langkah.hint}</Text>
+          <Heading as="h2" size="sm" mb="12px">Urutan kerja</Heading>
+          {/* Kalimat langkahnya menempel pada item yang sedang berjalan, di
+              antara yang sudah lewat dan yang menyusul: operator baru tahu
+              bukan cuma apa yang harus dilakukan, tapi apa yang datang sesudahnya. */}
+          <StepList items={urutan} mb="20px" />
           {/* Di HP tombolnya selebar kartu: satu ibu jari, tanpa membidik.
               `md`, bukan `sm`: breakpoint sm tema ini 320px, jadi sm = semua HP. */}
           <Flex gap="12px" wrap="wrap" direction={{ base: 'column', md: 'row' }} align="stretch">

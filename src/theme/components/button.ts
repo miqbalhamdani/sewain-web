@@ -42,6 +42,12 @@ export const buttonStyles = {
       defaultProps: {
         size: "lg",
       },
+      // Tiap varian ber-latar di bawah membawa `_hover._disabled` berisi latar
+      // diamnya -- pola yang sama dengan varian `solid` bawaan Chakra. Base
+      // style Chakra menyetel `_hover: { _disabled: { bg: 'initial' } }`, dan
+      // tanpa penimpa ini tombol `brand` yang nonaktif (mis. "Selesaikan
+      // deposit" sebelum catatan potongan diisi) kehilangan latarnya saat
+      // disorot: teks putih di atas kartu putih, tombolnya seperti hilang.
       variants: {
         outline: () => ({
           borderRadius: "16px",
@@ -83,6 +89,7 @@ export const buttonStyles = {
           },
           _hover: {
             bg: mode("brand.600", "brand.400")(props),
+            _disabled: { bg: mode("brand.500", "brand.400")(props) },
           },
         }),
         darkBrand: (props: StyleFunctionProps) => ({
@@ -96,6 +103,7 @@ export const buttonStyles = {
           },
           _hover: {
             bg: mode("brand.800", "brand.400")(props),
+            _disabled: { bg: mode("brand.900", "brand.400")(props) },
           },
         }),
         lightBrand: (props: StyleFunctionProps) => ({
@@ -109,6 +117,7 @@ export const buttonStyles = {
           },
           _hover: {
             bg: mode("secondaryGray.400", "whiteAlpha.200")(props),
+            _disabled: { bg: mode("#F2EFFF", "whiteAlpha.100")(props) },
           },
         }),
         light: (props: StyleFunctionProps) => ({
@@ -122,6 +131,7 @@ export const buttonStyles = {
           },
           _hover: {
             bg: mode("secondaryGray.400", "whiteAlpha.200")(props),
+            _disabled: { bg: mode("secondaryGray.300", "whiteAlpha.100")(props) },
           },
         }),
         action: (props: StyleFunctionProps) => ({
@@ -135,6 +145,7 @@ export const buttonStyles = {
           _active: { bg: mode("secondaryGray.300", "brand.400")(props) },
           _hover: {
             bg: mode("secondaryGray.200", "brand.400")(props),
+            _disabled: { bg: mode("secondaryGray.300", "brand.400")(props) },
           },
         }),
         setup: (props: StyleFunctionProps) => ({
@@ -150,6 +161,7 @@ export const buttonStyles = {
           _active: { bg: mode("transparent", "brand.400")(props) },
           _hover: {
             bg: mode("secondaryGray.100", "brand.400")(props),
+            _disabled: { bg: mode("transparent", "brand.400")(props) },
           },
         }),
       },
