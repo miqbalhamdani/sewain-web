@@ -1,17 +1,16 @@
 'use client'
 
 import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 
-import { ConfirmDialog } from 'components/table/ConfirmDialog'
 import { useCan } from 'contexts/SessionContext'
-import { api, problemCode } from 'lib/api/client'
+import { useDialogState } from 'hooks/useDialogState'
 import type { components } from 'lib/api/schema'
 import { formatDateTime } from 'lib/format/datetime'
 import { formatRupiah } from 'lib/format/money'
 
 import { ProofSection } from './ProofSection'
+import { RecordPaymentDialog } from './RecordPaymentDialog'
 import { INVOICE_STATUS } from './status'
 
 type Invoice = components['schemas']['Invoice']
@@ -26,45 +25,42 @@ type Invoice = components['schemas']['Invoice']
  * an operator, but it also gives the operator "mencatat pembayaran": the person
  * collecting the cash has to see the bill.
  *
+ * Satu aksi per invoice yang belum lunas: "Catat pembayaran", yang membuka
+ * RecordPaymentDialog. Cara bayar dan bukti ditanyakan di sana, bukan sebagai
+ * tiga tombol berdampingan di kartu ini.
+ *
  * `collapsible`: an invoice that is paid or cancelled opens folded -- one line
  * with number, status and total, and a "Lihat rincian" button. What still
  * needs paying is never folded; hiding the bill behind a click is how it gets
  * missed.
  */
-export function InvoiceCard({ invoice, collapsible = false }: { invoice: Invoice; collapsible?: boolean }) {
-  const queryClient = useQueryClient()
+export function InvoiceCard({
+  invoice,
+  collapsible = false,
+  primary = false,
+  reviewPrimary = false,
+  absorbedByDeposit = false,
+  pendingProofs = 0,
+}: {
+  invoice: Invoice
+  collapsible?: boolean
+  /** Tombol bayar tampil ungu hanya kalau kartu langkah menunjuk ke sini. */
+  primary?: boolean
+  /** Diteruskan ke ProofSection: Setujui tampil ungu kalau langkahnya meninjau bukti. */
+  reviewPrimary?: boolean
+  /** Tagihan denda/kerusakan yang akan diserap deposit (BR-048): tanpa tombol bayar. */
+  absorbedByDeposit?: boolean
+  /** Bukti penyewa yang masih menunggu di invoice ini. */
+  pendingProofs?: number
+}) {
   const canPay = useCan('payments:write')
   const rincianId = useId()
-  const [method, setMethod] = useState<'cash' | 'manual_transfer' | null>(null)
-  const [error, setError] = useState('')
+  const bayar = useDialogState<true>()
   const status = INVOICE_STATUS[invoice.status] ?? { label: invoice.status, scheme: 'gray' }
   const payable = (invoice.status === 'unpaid' || invoice.status === 'overdue') && invoice.total > 0
   const beres = invoice.status === 'paid' || invoice.status === 'cancelled'
   const bisaDilipat = collapsible && beres
   const [terbuka, setTerbuka] = useState(!bisaDilipat)
-
-  const bayar = useMutation({
-    retry: false,
-    mutationFn: async (m: 'cash' | 'manual_transfer') => {
-      const { error } = await api.POST('/invoices/{id}/payments', {
-        // One key per click: the confirm dialog is the intent (BR-090).
-        params: { path: { id: invoice.id }, header: { 'Idempotency-Key': crypto.randomUUID() } },
-        body: { method: m, amount: invoice.total },
-      })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      setMethod(null)
-      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      void queryClient.invalidateQueries({ queryKey: ['invoices'] })
-    },
-    onError: (problem) => {
-      setMethod(null)
-      setError(problemCode(problem) === 'invoice-already-paid'
-        ? 'Invoice ini sudah lunas — mungkin baru dicatat orang lain.'
-        : 'Pembayaran gagal dicatat. Coba lagi.')
-    },
-  })
 
   return (
     <Box borderWidth="1px" borderColor="border.subtle" borderRadius="12px" p="12px" mb="8px"
@@ -104,24 +100,32 @@ export function InvoiceCard({ invoice, collapsible = false }: { invoice: Invoice
           <Text fontWeight="700" color="text.primary">{formatRupiah(invoice.total)}</Text>
         </Flex>
 
-        {error !== '' && <Text role="alert" fontSize="sm" color="red.500" mt="6px">{error}</Text>}
-        {canPay && payable && (
-          <Flex gap="8px" mt="12px" wrap="wrap">
-            <Button size="sm" variant="brand" onClick={() => { setError(''); setMethod('cash') }}>Catat bayar tunai</Button>
-            <Button size="sm" variant="outline" onClick={() => { setError(''); setMethod('manual_transfer') }}>Catat bayar transfer</Button>
-          </Flex>
+        {canPay && payable && absorbedByDeposit && (
+          <Text fontSize="sm" color="text.secondary" mt="10px">
+            Ditagih lewat deposit. Tekan &ldquo;Selesaikan deposit&rdquo; di bawah — tagihan ini ditutup, dan
+            kekurangannya terbit sebagai tagihan baru.
+          </Text>
         )}
-        {invoice.status !== 'cancelled' && <ProofSection invoice={invoice} />}
+        {canPay && payable && !absorbedByDeposit && (
+          <>
+            {pendingProofs > 0 && (
+              <Text fontSize="sm" color="text.secondary" mt="10px">
+                Ada bukti transfer dari penyewa yang menunggu ditinjau di bawah. Periksa itu dulu; catat
+                pembayaran hanya kalau penyewa membayar dengan cara lain.
+              </Text>
+            )}
+            <Button size="sm" variant={primary ? 'brand' : 'outline'} mt={pendingProofs > 0 ? '8px' : '12px'}
+              onClick={() => bayar.open(true)}>
+              Catat pembayaran
+            </Button>
+          </>
+        )}
+        {invoice.status !== 'cancelled' && <ProofSection invoice={invoice} primary={reviewPrimary} />}
       </Box>
 
-      <ConfirmDialog
-        isOpen={method !== null}
-        title={`Catat ${invoice.number} lunas?`}
-        body={`${method === 'cash' ? 'Tunai' : 'Transfer yang sudah kamu cek di rekening'} sebesar ${formatRupiah(invoice.total)}. Lunas penuh — tidak ada pembayaran sebagian.`}
-        busy={bayar.isPending}
-        onCancel={() => setMethod(null)}
-        onConfirm={() => method && bayar.mutate(method)}
-      />
+      {bayar.value && (
+        <RecordPaymentDialog invoice={invoice} isOpen={bayar.isOpen} onClose={bayar.close} onCloseComplete={bayar.onCloseComplete} />
+      )}
     </Box>
   )
 }

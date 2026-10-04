@@ -13,7 +13,7 @@ import {
   Spinner,
   Text,
 } from '@chakra-ui/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -29,8 +29,8 @@ import { formatPrice, formatRupiah } from 'lib/format/money'
 import { DepositPanel } from '../DepositPanel'
 import { HandoverGallery } from '../HandoverGallery'
 import { STATUS, StatusBadges } from '../labels'
-import { closingNote, nextStep, type StepAction } from '../nextStep'
-import { actionErrorMessage, allowedActions, useBookingActions } from '../useBookingActions'
+import { closingNote, nextStep, type Step } from '../nextStep'
+import { actionErrorMessage, allowedActions, useBookingActions, type BookingAction } from '../useBookingActions'
 
 const REMAH = [{ label: 'Booking', href: '/bookings' }]
 
@@ -91,6 +91,26 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
     },
   })
 
+  // Bukti transfer penyewa yang masih menunggu, per invoice yang belum lunas.
+  // Kunci query sama dengan ProofSection: satu request, dua pembaca -- dan
+  // langkah berikutnya bisa berkata "periksa bukti dulu" sebelum operator
+  // mencatat pembayaran lain untuk tagihan yang mungkin sudah dibayar.
+  const belumLunas = (invoices ?? []).filter((inv) => inv.status === 'unpaid' || inv.status === 'overdue')
+  const buktiMenunggu = useQueries({
+    queries: belumLunas.map((inv) => ({
+      queryKey: ['invoices', inv.id, 'proofs'],
+      queryFn: async () => {
+        const { data, error } = await api.GET('/invoices/{id}/proofs', { params: { path: { id: inv.id } } })
+        if (error) throw error
+        return data
+      },
+    })),
+    combine: (hasil) =>
+      Object.fromEntries(belumLunas.map((inv, i) => [
+        inv.id, (hasil[i]?.data ?? []).filter((p) => p.review_status === 'pending').length,
+      ])) as Record<string, number>,
+  })
+
   // Pembaca layar mulai dari ringkasan booking, bukan dari sidebar.
   const siap = b !== undefined
   useEffect(() => {
@@ -116,26 +136,38 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
   }
 
   const boleh = allowedActions(b)
-  const langkah = nextStep(b, deposit, formatRupiah)
+  const pendingProofs = Object.values(buktiMenunggu).reduce((a, n) => a + n, 0)
+  const langkah = nextStep(b, {
+    deposit,
+    pendingProofs,
+    pendingProofInvoiceId: belumLunas.find((inv) => (buktiMenunggu[inv.id] ?? 0) > 0)?.id ?? null,
+  }, formatRupiah)
   // Slot yang sama: kalau tidak ada langkah, yang tampil adalah penutupnya.
   const penutup = langkah ? null : closingNote(b, formatRupiah)
-  const bisa = (a: StepAction) =>
-    a === 'confirm' || a === 'complete' ? canWrite
-      : a === 'pickup' || a === 'return' ? canHandover
+  const bisa = (s: Step) =>
+    s.action === 'confirm' || s.action === 'complete' ? canWrite
+      : s.action === 'pickup' || s.action === 'return' ? canHandover
       : true
-  function jalankan(a: StepAction) {
+  function jalankan(s: Step) {
     setPesan(null)
-    if (a === 'pay' || a === 'settle') {
-      // Bukan request: tombol sebenarnya ada di kartunya, karena catat bayar
-      // butuh memilih invoice dan caranya. Gulir ke sana dan taruh fokus di
-      // judulnya supaya pembaca layar ikut pindah.
-      const el = document.getElementById(a === 'pay' ? 'tagihan' : 'deposit')
+    if (s.anchor) {
+      // Bukan request: tombol sebenarnya ada di kartunya. Gulir ke sana dan
+      // taruh fokus di judulnya supaya pembaca layar ikut pindah.
+      const el = document.getElementById(s.anchor)
       el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      el?.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true })
+      el?.querySelector<HTMLElement>('h2, h3')?.focus({ preventScroll: true })
       return
     }
-    aksi.start(a, b)
+    aksi.start(s.action as BookingAction, b)
   }
+  // BR-048 (keputusan M4): tagihan denda & kerusakan sesudah kembali DISERAP
+  // deposit -- settle menutupnya dan menerbitkan kekurangannya sebagai tagihan
+  // baru. Mencatatnya lunas sendiri berarti penyewa membayar dua kali.
+  const depositMenunggu = b.deposit_amount !== null && b.deposit_settled_at === null && b.deposit_waived_at === null
+  const diserapDeposit = (inv: NonNullable<typeof invoices>[number]) =>
+    b.status === 'returned' && depositMenunggu
+    && (inv.status === 'unpaid' || inv.status === 'overdue')
+    && !inv.lines.some((l) => l.kind === 'rent' || l.kind === 'deposit')
 
   const bayar = b.payment.status === 'none'
     ? null
@@ -181,9 +213,9 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
           {/* Di HP tombolnya selebar kartu: satu ibu jari, tanpa membidik.
               `md`, bukan `sm`: breakpoint sm tema ini 320px, jadi sm = semua HP. */}
           <Flex gap="12px" wrap="wrap" direction={{ base: 'column', md: 'row' }} align="stretch">
-            {bisa(langkah.action) && (
+            {bisa(langkah) && (
               <Button variant="brand" h="48px" px="28px" w={{ base: '100%', md: 'auto' }} isLoading={aksi.pending}
-                onClick={() => jalankan(langkah.action)}>
+                onClick={() => jalankan(langkah)}>
                 {langkah.label}
               </Button>
             )}
@@ -222,11 +254,19 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
             {invoices?.length === 0 && (
               <Text color="text.secondary">Belum ada tagihan. Invoice terbit saat booking dikonfirmasi.</Text>
             )}
-            {invoices?.map((inv) => <InvoiceCard key={inv.id} invoice={inv} collapsible />)}
+            {/* Satu tombol ungu per halaman: tombol bayar dan tombol setujui
+                di kartu hanya menonjol kalau kartu langkah memang menunjuk ke sana. */}
+            {invoices?.map((inv) => (
+              <InvoiceCard key={inv.id} invoice={inv} collapsible
+                primary={langkah?.action === 'pay'}
+                reviewPrimary={langkah?.action === 'review'}
+                absorbedByDeposit={diserapDeposit(inv)}
+                pendingProofs={buktiMenunggu[inv.id] ?? 0} />
+            ))}
           </Card>
           {b.deposit_amount !== null && (
             <Card variant="section" id="deposit" mb="20px">
-              <DepositPanel booking={b} />
+              <DepositPanel booking={b} returnInvoiceNumbers={(invoices ?? []).filter(diserapDeposit).map((inv) => inv.number)} />
             </Card>
           )}
         </Box>

@@ -1,13 +1,12 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Image, Input, Link, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, Heading, Image, Input, Link, Text } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import { PhotoLightbox, type LightboxPhoto } from 'components/handover/PhotoLightbox'
 import { useCan } from 'contexts/SessionContext'
 import { useDialogState } from 'hooks/useDialogState'
-import { usePhotoUpload } from 'hooks/usePhotoUpload'
 import { api, problemCode } from 'lib/api/client'
 import type { components } from 'lib/api/schema'
 import { formatDateTime } from 'lib/format/datetime'
@@ -51,17 +50,23 @@ function penjelasan(p: Proof, total: number): string {
  * and in phase 1 there is no reader, so every proof says "check by hand". Only
  * a person pressing Setujui makes the invoice paid.
  *
- * Gambarnya tampil langsung sebagai thumbnail, bukan tautan ke tab baru:
- * pekerjaan di sini adalah mencocokkan nominal di struk dengan tagihan, dan
- * tombol Setujui di samping gambar yang belum terlihat adalah undangan
- * menyetujui tanpa melihat. Klik thumbnail membuka lightbox yang sama dengan
- * foto serah-terima.
+ * Bagian ini hanya MENINJAU. Bukti yang menunggu datang dari penyewa lewat
+ * portal; bukti yang dilampirkan operator saat mencatat pembayaran
+ * (RecordPaymentDialog) sudah disetujui saat tiba di sini. Tidak ada tombol
+ * unggah di sini lagi -- tiga pintu untuk "uangnya sudah masuk" membuat
+ * operator baru tidak tahu harus mulai dari mana.
+ *
+ * Gambarnya tampil langsung sebagai thumbnail: pekerjaan di sini adalah
+ * mencocokkan nominal di struk dengan tagihan, dan tombol Setujui di samping
+ * gambar yang belum terlihat adalah undangan menyetujui tanpa melihat.
  */
-export function ProofSection({ invoice }: { invoice: Invoice }) {
+export function ProofSection({ invoice, primary = false }: {
+  invoice: Invoice
+  /** Setujui tampil ungu hanya kalau kartu langkah menunjuk ke sini (satu tombol ungu per halaman). */
+  primary?: boolean
+}) {
   const queryClient = useQueryClient()
   const canPay = useCan('payments:write')
-  const input = useRef<HTMLInputElement>(null)
-  const upload = usePhotoUpload('payment_proof')
   const lb = useDialogState<{ photos: LightboxPhoto[]; index: number }>()
   const [error, setError] = useState('')
   const [rejecting, setRejecting] = useState<string | null>(null)
@@ -75,31 +80,6 @@ export function ProofSection({ invoice }: { invoice: Invoice }) {
       return data
     },
   })
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['invoices'] })
-    void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-  }
-
-  const kirim = useMutation({
-    retry: false,
-    mutationFn: async (key: string) => {
-      const { error } = await api.POST('/invoices/{id}/proofs', { params: { path: { id: invoice.id } }, body: { object_key: key } })
-      if (error) throw error
-    },
-    onSuccess: refresh,
-    onError: (p) => setError(problemCode(p) === 'invoice-already-paid' ? 'Invoice ini sudah lunas.' : 'Bukti gagal disimpan. Unggah ulang.'),
-  })
-  // Commit each upload as soon as its PUT finishes.
-  const done = upload.photos.filter((p) => p.status === 'done').map((p) => p.key!)
-  const sent = useRef(new Set<string>())
-  useEffect(() => {
-    for (const key of done) {
-      if (!sent.current.has(key)) {
-        sent.current.add(key)
-        kirim.mutate(key)
-      }
-    }
-  }, [done.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const putus = useMutation({
     retry: false,
@@ -110,13 +90,18 @@ export function ProofSection({ invoice }: { invoice: Invoice }) {
         : await api.POST('/proofs/{id}/reject', { params: { path: { id: proof.id } }, body: { reason: reason.trim() } })
       if (error) throw error
     },
-    onSuccess: () => { setRejecting(null); setReason(''); refresh() },
+    onSuccess: () => {
+      setRejecting(null)
+      setReason('')
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+    },
     onError: (p) => setError(problemCode(p) === 'invoice-already-paid' ? 'Invoice ini sudah lunas.' : 'Keputusan gagal disimpan.'),
   })
 
-  const open = invoice.status === 'unpaid' || invoice.status === 'overdue'
-  if (!open && (proofs?.length ?? 0) === 0) return null
+  if ((proofs?.length ?? 0) === 0) return null
 
+  const open = invoice.status === 'unpaid' || invoice.status === 'overdue'
   // Satu lightbox untuk semua bukti bergambar milik invoice ini, supaya ‹ ›
   // berpindah antar bukti. PDF tidak ikut: ia dibuka di tab baru.
   const bergambar = (proofs ?? []).filter((p) => p.content_type !== 'application/pdf')
@@ -125,18 +110,11 @@ export function ProofSection({ invoice }: { invoice: Invoice }) {
   }))
 
   return (
-    <Box mt="12px" pt="10px" borderTopWidth="1px" borderColor="border.subtle">
-      <Flex justify="space-between" align="center" mb="6px">
-        <Text fontSize="sm" fontWeight="600" color="text.primary">Bukti transfer</Text>
-        {canPay && open && (
-          <>
-            <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden
-              onChange={(e) => { setError(''); if (e.target.files) upload.add(e.target.files); e.target.value = '' }} />
-            <Button size="sm" variant="outline" isLoading={upload.pending || kirim.isPending}
-              onClick={() => input.current?.click()}>Unggah bukti</Button>
-          </>
-        )}
-      </Flex>
+    <Box id={`bukti-${invoice.id}`} mt="12px" pt="10px" borderTopWidth="1px" borderColor="border.subtle">
+      {/* h3 yang bisa difokus: langkah "Periksa bukti transfer" menggulir ke sini. */}
+      <Heading as="h3" size="xs" tabIndex={-1} mb="6px" borderRadius="4px" _focusVisible={{ boxShadow: 'outline' }}>
+        Bukti transfer
+      </Heading>
 
       {proofs?.map((p) => {
         const pdf = p.content_type === 'application/pdf'
@@ -170,8 +148,13 @@ export function ProofSection({ invoice }: { invoice: Invoice }) {
               <Box flex="1" minW="0">
                 <Text fontSize="sm" color="text.secondary">{kapan}</Text>
                 <Badge mt="4px" colorScheme={badge.scheme}>{badge.label}</Badge>
-                {pending && (
+                {pending && open && (
                   <Text fontSize="sm" color="text.secondary" mt="6px">{penjelasan(p, invoice.total)}</Text>
+                )}
+                {pending && !open && (
+                  <Text fontSize="sm" color="text.secondary" mt="6px">
+                    Tagihan ini sudah lunas lewat pencatatan lain, jadi bukti ini tidak perlu ditinjau lagi.
+                  </Text>
                 )}
                 {p.review_status === 'rejected' && (
                   <Text fontSize="sm" color="text.secondary" mt="6px">Alasan: {p.reject_reason}</Text>
@@ -182,9 +165,9 @@ export function ProofSection({ invoice }: { invoice: Invoice }) {
             {canPay && open && pending && rejecting !== p.id && (
               <Flex gap="8px" mt="10px" wrap="wrap">
                 {/* Labelnya menyebut akibatnya: menyetujui bukti = invoice lunas (BR-062). */}
-                <Button size="sm" variant="brand" isLoading={putus.isPending}
-                  onClick={() => putus.mutate({ proof: p, approve: true })}>Setujui — tandai lunas</Button>
-                <Button size="sm" variant="outline" onClick={() => setRejecting(p.id)}>Tolak bukti</Button>
+                <Button size="sm" variant={primary ? 'brand' : 'outline'} isLoading={putus.isPending}
+                  onClick={() => { setError(''); putus.mutate({ proof: p, approve: true }) }}>Setujui — tandai lunas</Button>
+                <Button size="sm" variant="outline" onClick={() => { setError(''); setRejecting(p.id) }}>Tolak bukti</Button>
               </Flex>
             )}
             {rejecting === p.id && (

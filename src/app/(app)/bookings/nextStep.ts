@@ -2,7 +2,7 @@ import type { components } from 'lib/api/schema'
 
 type Booking = components['schemas']['Booking']
 
-export type StepAction = 'confirm' | 'pay' | 'pickup' | 'return' | 'settle' | 'complete'
+export type StepAction = 'confirm' | 'pay' | 'review' | 'pickup' | 'return' | 'settle' | 'complete'
 
 export type Step = {
   action: StepAction
@@ -10,6 +10,22 @@ export type Step = {
   label: string
   /** Satu-dua kalimat biasa yang menyebut angkanya. */
   hint: string
+  /**
+   * Id elemen yang dituju, untuk langkah yang bukan request (`pay`, `review`,
+   * `settle`): tombolnya menggulir ke sana, karena tombol sebenarnya ada di
+   * kartunya -- catat bayar butuh memilih invoice, tinjau bukti butuh melihat
+   * gambarnya, selesaikan deposit butuh catatan potongan.
+   */
+  anchor?: string
+}
+
+/** Yang tidak ada di objek Booking tapi menentukan langkahnya. */
+export type StepExtra = {
+  deposit?: StepDeposit
+  /** Bukti transfer dari penyewa yang masih `pending`, di invoice yang belum lunas. */
+  pendingProofs?: number
+  /** Invoice pertama yang punya bukti menunggu; tujuan anchor `review`. */
+  pendingProofInvoiceId?: string | null
 }
 
 export type StepInput = Pick<
@@ -47,7 +63,8 @@ export type StepDeposit = {
  * Deposit, tempat tombol sebenarnya berada -- catat bayar butuh memilih
  * invoice dan cara bayar, selesaikan deposit butuh catatan potongan.
  */
-export function nextStep(b: StepInput, deposit: StepDeposit | undefined, fmt: (n: number) => string): Step | null {
+export function nextStep(b: StepInput, extra: StepExtra, fmt: (n: number) => string): Step | null {
+  const { deposit, pendingProofs = 0, pendingProofInvoiceId = null } = extra
   const belumLunas = b.payment.status === 'unpaid' || b.payment.status === 'overdue'
 
   switch (b.status) {
@@ -62,10 +79,21 @@ export function nextStep(b: StepInput, deposit: StepDeposit | undefined, fmt: (n
     case 'no_show': {
       // BR-057: tidak datang tidak langsung ditolak; yang telat tetap dilayani.
       const awal = b.status === 'no_show' ? 'Penyewa belum datang di jam mulai, tapi kalau datang tetap bisa dilayani. ' : ''
+      if (belumLunas && pendingProofs > 0) {
+        // Uangnya mungkin sudah masuk: bukti dari penyewa ditinjau SEBELUM
+        // operator mencatat pembayaran lain, atau penyewa ditagih dua kali.
+        return {
+          action: 'review',
+          label: 'Periksa bukti transfer',
+          anchor: pendingProofInvoiceId ? `bukti-${pendingProofInvoiceId}` : 'tagihan',
+          hint: `${awal}Penyewa sudah mengirim bukti transfer. Cocokkan nominal dan tanggalnya dengan tagihan ${fmt(b.payment.outstanding)}, lalu setujui atau tolak. Catat pembayaran tunai atau transfer hanya kalau penyewa membayar dengan cara lain.`,
+        }
+      }
       if (belumLunas) {
         return {
           action: 'pay',
           label: 'Catat pembayaran',
+          anchor: 'tagihan',
           hint: `${awal}Sisa tagihan ${fmt(b.payment.outstanding)} belum dibayar. Catat pembayarannya di bagian Tagihan.`,
         }
       }
@@ -100,6 +128,7 @@ export function nextStep(b: StepInput, deposit: StepDeposit | undefined, fmt: (n
         return {
           action: 'pay',
           label: 'Catat pembayaran deposit',
+          anchor: 'tagihan',
           hint: `Deposit ${fmt(dep)} belum pernah dibayar, jadi belum bisa diselesaikan. Catat pembayarannya di bagian Tagihan, atau bebaskan.`,
         }
       }
@@ -114,7 +143,7 @@ export function nextStep(b: StepInput, deposit: StepDeposit | undefined, fmt: (n
           hint = `Potongan ${fmt(deposit.deductions)} diambil dari deposit ${fmt(dep)}; ${fmt(deposit.refund_amount)} dikembalikan ke penyewa.`
         }
       }
-      return { action: 'settle', label: 'Selesaikan deposit', hint }
+      return { action: 'settle', label: 'Selesaikan deposit', anchor: 'deposit', hint }
     }
 
     case 'completed':
@@ -122,6 +151,7 @@ export function nextStep(b: StepInput, deposit: StepDeposit | undefined, fmt: (n
         return {
           action: 'pay',
           label: 'Catat pembayaran sisa',
+          anchor: 'tagihan',
           hint: `Booking sudah selesai, tapi sisa tagihan ${fmt(b.payment.outstanding)} belum dibayar.`,
         }
       }

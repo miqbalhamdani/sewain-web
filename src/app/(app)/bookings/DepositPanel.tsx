@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Button, Flex, FormControl, FormLabel, Heading, Text, Textarea } from '@chakra-ui/react'
+import { Box, Button, Flex, FormControl, FormLabel, Heading, ListItem, OrderedList, Text, Textarea } from '@chakra-ui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -20,7 +20,11 @@ type Booking = components['schemas']['Booking']
  * as a new invoice above -- never as a negative deposit. Waiving is the
  * owner's, before the deposit is paid, and is not rendered for an operator.
  */
-export function DepositPanel({ booking }: { booking: Booking }) {
+export function DepositPanel({ booking, returnInvoiceNumbers = [] }: {
+  booking: Booking
+  /** Nomor tagihan denda/kerusakan yang akan diserap saat diselesaikan (BR-048). */
+  returnInvoiceNumbers?: string[]
+}) {
   const queryClient = useQueryClient()
   const canSettle = useCan('bookings:write')
   const canWaive = useCan('deposits:waive')
@@ -88,15 +92,42 @@ export function DepositPanel({ booking }: { booking: Booking }) {
 
       {canSettleNow && (
         <Box mt="10px" borderWidth="1px" borderColor="border.subtle" borderRadius="12px" p="12px">
-          <Flex justify="space-between" fontSize="sm"><Text color="text.secondary">Potongan (denda & kerusakan)</Text><Text>{formatRupiah(p.deductions)}</Text></Flex>
-          <Flex justify="space-between" fontSize="sm"><Text color="text.secondary">Diambil dari deposit</Text><Text>{formatRupiah(p.deducted_amount)}</Text></Flex>
-          <Flex justify="space-between" fontSize="sm" fontWeight="700"><Text>Dikembalikan ke penyewa</Text><Text>{formatRupiah(p.refund_amount)}</Text></Flex>
-          {p.new_invoice_amount > 0 && (
-            // BR-048: the shortfall is a new invoice, not a negative deposit.
-            <Text fontSize="sm" color="orange.500" mt="6px">
-              Deposit tidak cukup — invoice baru {formatRupiah(p.new_invoice_amount)} akan terbit untuk sisanya.
-            </Text>
-          )}
+          {/* Urutan, bukan tabel angka: operator baru bertanya "bayar dulu
+              atau selesaikan dulu?", dan jawabannya adalah apa yang terjadi
+              saat tombol ini ditekan (BR-048: deposit menyerap tagihan kembali;
+              kekurangannya invoice baru, bukan deposit minus). */}
+          <Text fontSize="sm" fontWeight="600" color="text.primary" mb="6px">
+            Yang terjadi saat kamu menekan &ldquo;Selesaikan deposit&rdquo;:
+          </Text>
+          <OrderedList spacing="4px" fontSize="sm" color="text.primary" ps="4px">
+            {p.deductions > 0 ? (
+              <>
+                <ListItem>
+                  Potongan {formatRupiah(p.deductions)} (denda &amp; kerusakan) diambil dari deposit {formatRupiah(p.deposit_amount ?? 0)}.
+                </ListItem>
+                {returnInvoiceNumbers.length > 0 && (
+                  <ListItem>
+                    Tagihan {returnInvoiceNumbers.join(', ')} ditutup —{' '}
+                    <Text as="span" fontWeight="700">jangan dicatat bayar terpisah</Text>.
+                  </ListItem>
+                )}
+                {p.new_invoice_amount > 0 ? (
+                  <ListItem>
+                    Kekurangan {formatRupiah(p.new_invoice_amount)} terbit sebagai tagihan baru. Catat pembayarannya setelah ini.
+                  </ListItem>
+                ) : (
+                  <ListItem>
+                    Sisa {formatRupiah(p.refund_amount)} dikembalikan ke penyewa — serahkan uangnya, lalu tercatat di sini.
+                  </ListItem>
+                )}
+              </>
+            ) : (
+              <ListItem>
+                Tidak ada potongan. Deposit {formatRupiah(p.deposit_amount ?? 0)} dikembalikan penuh ke penyewa — serahkan
+                uangnya, lalu tercatat di sini.
+              </ListItem>
+            )}
+          </OrderedList>
           {p.deductions > 0 && (
             <FormControl mt="10px" isRequired>
               <FormLabel fontSize="sm">Catatan potongan</FormLabel>
