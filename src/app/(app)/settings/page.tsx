@@ -87,7 +87,7 @@ export default function SettingsPage() {
             <AlertIcon />
             <AlertDescription fontSize="sm">
               {missing.length === 0
-                ? 'Profil lengkap. Halaman publik tayang begitu fiturnya dirilis.'
+                ? 'Profil lengkap — halaman publikmu sudah tayang.'
                 : `Halaman publik belum bisa tayang: ${missing.join(', ')} belum diisi.`}
             </AlertDescription>
           </Alert>
@@ -103,6 +103,21 @@ export default function SettingsPage() {
           </Field>
           <Field label="Jam operasional" error={errors.operating_hours}>
             <Input value={draft.operating_hours ?? ''} onChange={(e) => set('operating_hours', e.target.value || null)} placeholder="Senin–Sabtu 08.00–20.00" />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Rekening transfer" description="Tampil di portal penyewa sebagai cara bayar. Kosong = penyewa diminta menghubungimu.">
+          <SimpleGrid columns={{ base: 1, md: 2 }} gap="0 20px">
+            <Field label="Bank" error={errors.bank_name}>
+              <Input value={draft.bank_name ?? ''} onChange={(e) => set('bank_name', e.target.value || null)} placeholder="BCA" maxLength={50} />
+            </Field>
+            <Field label="Nomor rekening" error={errors.bank_account_number} helper="Angka saja, tanpa spasi atau titik.">
+              <Input value={draft.bank_account_number ?? ''} inputMode="numeric" maxLength={20}
+                onChange={(e) => set('bank_account_number', e.target.value.replace(/\D/g, '') || null)} />
+            </Field>
+          </SimpleGrid>
+          <Field label="Atas nama" error={errors.bank_account_holder}>
+            <Input value={draft.bank_account_holder ?? ''} onChange={(e) => set('bank_account_holder', e.target.value || null)} maxLength={100} />
           </Field>
         </FormSection>
 
@@ -170,7 +185,7 @@ function Toggle({ id, checked, onChange, label, hint }: { id: string; checked: b
 }
 
 // Text fields where blank means "not set": sent trimmed, or null.
-const NULLABLE_TEXT: (keyof Settings)[] = ['whatsapp', 'address', 'operating_hours']
+const NULLABLE_TEXT: (keyof Settings)[] = ['whatsapp', 'address', 'operating_hours', 'bank_name', 'bank_account_number', 'bank_account_holder']
 
 /** The API speaks English details; the owner reads Indonesian next to the field. */
 function messageFor(problem: unknown): Partial<Record<keyof Settings | 'form', string>> {
@@ -181,5 +196,6 @@ function messageFor(problem: unknown): Partial<Record<keyof Settings | 'form', s
   if (detail.includes('WhatsApp')) return { whatsapp: 'Diawali +62 lalu 8–13 digit, contoh +628123456789.' }
   if (detail.includes('booking_code_prefix')) return { booking_code_prefix: '2–6 huruf besar atau angka.' }
   if (detail.includes('payment_due_hours')) return { payment_due_hours: 'Minimal 1 jam.' }
+  if (detail.includes('bank_account_number')) return { bank_account_number: '5–20 angka.' }
   return { form: 'Pengaturan gagal disimpan. Coba lagi.' }
 }

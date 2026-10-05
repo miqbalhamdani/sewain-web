@@ -12,6 +12,7 @@ import {
   Link as ChakraLink,
   Spinner,
   Text,
+  useToast,
 } from '@chakra-ui/react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -289,6 +290,7 @@ export function BookingDetail({ id, initialError }: { id: string; initialError?:
               </ChakraLink>
               {b.customer.is_blacklisted && <Badge colorScheme="red">diblokir</Badge>}
             </Flex>
+            <PortalLink url={b.portal_url} phone={b.customer.phone} code={b.code} />
           </Card>
 
           <Card variant="section" mb="20px">
@@ -350,6 +352,31 @@ function Baris({ label, children }: { label: string; children: ReactNode }) {
     <Box mb="10px">
       <Text fontSize="sm" color="text.secondary">{label}</Text>
       <Text color="text.primary" fontWeight="500">{children}</Text>
+    </Box>
+  )
+}
+
+/**
+ * The renter's portal link (S1-053, 04-api-spec.md §5). WhatsApp sending is
+ * deferred, so staff send it by hand: copy it, or open WhatsApp with it typed.
+ * No link until the rental has a slug -- the portal lives on the owner's host.
+ */
+function PortalLink({ url, phone, code }: { url: string | null; phone: string; code: string }) {
+  const toast = useToast()
+  if (!url) {
+    return <Text fontSize="sm" color="text.secondary" mt="8px">Portal penyewa aktif setelah alamat halaman diisi di Pengaturan.</Text>
+  }
+  const wa = phone.replace(/\D/g, '').replace(/^0/, '62')
+  return (
+    <Box mt="12px">
+      <Text fontSize="sm" color="text.secondary" mb="6px">Portal penyewa — jadwal, tagihan, unggah bukti transfer</Text>
+      <Flex gap="8px" wrap="wrap">
+        <Button size="sm" variant="outline" onClick={() => {
+          void navigator.clipboard.writeText(url).then(() => toast({ status: 'success', duration: 2500, title: 'Tautan portal disalin' }))
+        }}>Salin tautan</Button>
+        <Button size="sm" variant="outline" as="a" target="_blank" rel="noopener noreferrer"
+          href={`https://wa.me/${wa}?text=${encodeURIComponent(`Booking ${code}: ${url}`)}`}>Kirim lewat WhatsApp</Button>
+      </Flex>
     </Box>
   )
 }
