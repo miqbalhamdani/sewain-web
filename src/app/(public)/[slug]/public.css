@@ -1,0 +1,6 @@
+/* The public page's only stylesheet (S1-060). Imported by (public)/[slug]/layout.tsx
+   and nowhere else: Tailwind's preflight in the root would reset the backoffice's
+   Chakra typography. source(none) + @source keep it from scanning the backoffice. */
+@import "tailwindcss" source(none);
+@source "./";
+@source "../../../components/shared";

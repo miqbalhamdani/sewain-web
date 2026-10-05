@@ -7,6 +7,10 @@ const nextConfig = {
     unoptimized: true,
   },
 
+  // Tenant hosts in development (S1-060): Next only serves its dev assets to
+  // origins it trusts, and <slug>.sewain.localhost behind Caddy is one.
+  allowedDevOrigins: ['*.sewain.localhost'],
+
   // The API is same-origin by contract: the client asks for `/api/v1/...` and
   // never for a host. In production Caddy routes that to the Go service
   // (S1-073); locally there is no proxy, so Next does the same job.

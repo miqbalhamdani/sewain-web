@@ -11,11 +11,12 @@ import {
   useColorMode,
   useColorModeValue,
 } from '@chakra-ui/react'
+import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { IoMdMoon, IoMdSunny } from 'react-icons/io'
 
 import { SidebarResponsive } from 'components/sidebar/Sidebar'
-import { useSession } from 'contexts/SessionContext'
+import { useCan, useSession } from 'contexts/SessionContext'
 import { LOGIN_PATH } from 'lib/api/client'
 import routes from 'routes'
 
@@ -30,6 +31,8 @@ import routes from 'routes'
 export default function HeaderLinks({ secondary }: { secondary: boolean }) {
   const { colorMode, toggleColorMode } = useColorMode()
   const { user, signOut } = useSession()
+  const canSettings = useCan('settings:write')
+  const canTeam = useCan('users:read')
   const router = useRouter()
 
   const navbarIcon = useColorModeValue('gray.400', 'white')
@@ -104,6 +107,22 @@ export default function HeaderLinks({ secondary }: { secondary: boolean }) {
             </Text>
           </Flex>
           <Flex flexDirection="column" p="10px">
+            {/* Owner only, and absent rather than refused for an operator (BR-003). */}
+            {canSettings && (
+              <MenuItem as={NextLink} href="/settings" _hover={{ bg: 'none' }} _focus={{ bg: 'none' }} borderRadius="8px" px="14px">
+                <Text fontSize="sm">Pengaturan</Text>
+              </MenuItem>
+            )}
+            {canSettings && (
+              <MenuItem as={NextLink} href="/settings/api-keys" _hover={{ bg: 'none' }} _focus={{ bg: 'none' }} borderRadius="8px" px="14px">
+                <Text fontSize="sm">Kunci API</Text>
+              </MenuItem>
+            )}
+            {canTeam && (
+              <MenuItem as={NextLink} href="/team" _hover={{ bg: 'none' }} _focus={{ bg: 'none' }} borderRadius="8px" px="14px">
+                <Text fontSize="sm">Tim</Text>
+              </MenuItem>
+            )}
             <MenuItem
               _hover={{ bg: 'none' }}
               _focus={{ bg: 'none' }}

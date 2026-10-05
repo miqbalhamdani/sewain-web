@@ -302,6 +302,8 @@ export interface paths {
          *
          *     Sesi yang dicabut mati dalam **≤ 15 menit**, batas TTL access token. Refresh yang
          *     datang sesudahnya ditolak, jadi tidak ada sesi yang hidup lebih lama dari itu.
+         *
+         *     Diri sendiri atau pemilik aktif terakhir → `422` (S1-067).
          */
         delete: operations["disableUser"];
         options?: never;
@@ -313,6 +315,9 @@ export interface paths {
          *
          *     Id milik usaha lain dibalas **`404`, bukan `403`** — baris usaha lain tidak bisa
          *     dibedakan dari baris yang memang tidak ada (BR-001).
+         *
+         *     Menurunkan atau menonaktifkan **diri sendiri**, atau pemilik aktif **terakhir**, dibalas
+         *     `422` — usaha tanpa pemilik aktif tidak bisa lagi mengubah pengaturannya (S1-067).
          */
         patch: operations["updateUser"];
         trace?: never;
@@ -1199,6 +1204,385 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Apa yang perlu ditangani hari ini
+         * @description Semua peran (`bookings:read`). Peringatan, bukan statistik: booking terlambat
+         *     (BR-041) **sebaris dengan deposit yang belum diselesaikan** — tanpa daftar kedua
+         *     itu BR-049 cuma ketahuan kalau ada yang membuka booking satu per satu (BR-033
+         *     sengaja tidak menampilkannya di kalender).
+         *
+         *     `revenue_this_month` dan `failed_jobs` **hanya untuk owner** — bagi operator
+         *     keduanya `null` (BR-003: operator tidak melihat satu pun angka pemasukan).
+         *     `failed_jobs` adalah dead-letter job runner (BR-072, BR-091).
+         *     `onboarding` dihitung dari data, bukan kolom progres (BR-005).
+         */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pemasukan per jenis baris, deposit terpisah
+         * @description Hanya `owner` (`reports:read`). **Basis kas:** baris invoice `paid` dihitung
+         *     pada `paid_at` di dalam periode — `rent + late_fee + damage + discount` (BR-076).
+         *     Potongan yang diserap deposit dihitung pada `deposit_settled_at`, dialokasikan ke
+         *     `late_fee`/`damage` dengan urutan yang sama seperti penyelesaian deposit, supaya
+         *     uang yang ditahan dari deposit tidak hilang dari pemasukan.
+         *
+         *     Deposit **bukan** pemasukan dan tampil sebagai saldo titipan terpisah (BR-050):
+         *     `in` = baris deposit yang lunas dalam periode, `returned` = pengembalian yang
+         *     diselesaikan dalam periode, `balance` = deposit lunas yang belum diselesaikan
+         *     dan tidak dibebaskan, saat ini.
+         */
+        get: operations["getRevenueReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/utilization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tingkat pemakaian per unit
+         * @description Hanya `owner`. Per unit `active`: persentase hari dalam periode yang tertutup
+         *     booking `picked_up`/`returned`/`completed`, dari `start_at` sampai
+         *     `actual_return_at` (atau `end_at` bila belum kembali). Draft, reserved, batal,
+         *     dan no-show tidak dihitung — yang diukur barang yang benar-benar keluar.
+         */
+        get: operations["getUtilizationReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/idle-units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unit menganggur lebih dari 30 hari
+         * @description Hanya `owner`. Unit `active` yang sewa terakhirnya berakhir lebih dari 30 hari
+         *     lalu — atau belum pernah disewa dan sudah terdaftar lebih dari 30 hari. Dihitung
+         *     terhadap sekarang, tanpa periode.
+         */
+        get: operations["getIdleUnitsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ekspor laporan ke CSV atau XLSX
+         * @description Hanya `owner`. Berkas dirakit **di luar request** oleh job runner (BR-077,
+         *     BR-091) → `202` + `job_id`; layar mem-poll `GET /jobs/{id}`. `bookings` =
+         *     daftar booking terlambat (laporan keempat BR-075). Deposit tetap kolom terpisah
+         *     dari pemasukan di berkas apa pun (BR-050).
+         */
+        post: operations["exportReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Status pekerjaan asinkron
+         * @description Semua peran, hanya job milik usaha ini — job usaha lain `404` (BR-001). Status
+         *     tinggal di Redis, bukan tabel, dan hilang 24 jam sesudah dibuat.
+         *     `download_url` ditandatangani **setiap kali diminta** dan berumur 15 menit
+         *     (BR-077): tautan yang kedaluwarsa dibuat ulang cukup dengan meminta lagi.
+         */
+        get: operations["getJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profil usaha pemilik host ini
+         * @description Yang membuat penyewa di katalog kosong tahu harus menghubungi siapa (BR-096,
+         *     `S1-068`). Host tak dikenal, pemilik `suspended`, dan pemilik yang profilnya belum
+         *     lengkap (`slug` + `whatsapp` + `address`) dibalas `404` yang **sama persis**.
+         */
+        get: operations["getPublicOwner"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Katalog publik, dengan ketersediaan kalau rentang diberikan
+         * @description Resource `active` yang punya minimal satu unit `active` (BR-025). Dengan
+         *     `start_at` + `end_at`, tiap resource membawa `available`, `available_count`,
+         *     `duration_qty`, dan `subtotal` — dihitung saat diminta, tanpa cache. Tanpa
+         *     rentang, keempatnya `null`.
+         *
+         *     Unit fisik tidak pernah disebut: tanpa kode, tanpa id (BR-025).
+         */
+        get: operations["listPublicResources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/resources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Satu resource, lengkap dengan spek dan syarat sewa
+         * @description Resource milik pemilik lain dibalas `404` yang sama dengan host asing (BR-030).
+         *     `system_terms` adalah empat kalimat tenggat/denda/no-show yang **dirakit server**
+         *     dari knob pemilik dan resource ini, tidak pernah dari teks juragan (BR-095).
+         */
+        get: operations["getPublicResource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ajukan booking dari halaman publik
+         * @description Membuat booking `draft` dengan `source = 'public_page'` — **tidak mengunci unit**
+         *     (BR-026). Unit dipilih server dari yang kosong saat ini; tidak ada yang kosong →
+         *     `409 booking-conflict` dengan `conflicts` **kosong** (booking orang lain tidak pernah
+         *     disebut). Draft kedaluwarsa sesuai `draft_expiry_hours` (BR-027).
+         *
+         *     Penyewa dicocokkan dengan nomor teleponnya (`0…` dibaca `+62…`); yang belum ada
+         *     dibuat. Penyewa terblokir dibalas `422 customer-blacklisted` dengan pesan netral,
+         *     tanpa alasan (BR-028). Rate limit 5/jam per IP dan 30/jam per pemilik.
+         */
+        post: operations["createPublicBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/portal/bookings/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+                 *     di host pemiliknya.
+                 */
+                token: components["parameters"]["PortalToken"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Satu booking, dilihat penyewanya
+         * @description Jadwal, tagihan, foto kondisi, status deposit, dan cara bayar — untuk booking
+         *     yang ditunjuk token itu saja (BR-002). Token di host pemilik lain, token yang
+         *     diubah, dan booking yang tidak ada dibalas `404` yang sama.
+         *
+         *     Tidak memuat kode unit, nama staf, maupun catatan internal.
+         */
+        get: operations["getPortalBooking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/portal/bookings/{token}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+                 *     di host pemiliknya.
+                 */
+                token: components["parameters"]["PortalToken"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Minta URL unggah bukti transfer
+         * @description Presign yang dibatasi token (§5): kuncinya `pending/<owner>/<booking>/<uuid>`, jadi
+         *     hanya bisa diserahkan ke booking yang sama. Gambar atau PDF, maks 10 MB.
+         */
+        post: operations["presignPortalUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/portal/bookings/{token}/proofs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+                 *     di host pemiliknya.
+                 */
+                token: components["parameters"]["PortalToken"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Serahkan bukti transfer dari portal
+         * @description Jalur yang sama dengan `POST /invoices/{id}/proofs`, untuk invoice milik booking
+         *     token ini saja (BR-062). **Tidak melunasi apa pun** — staf yang menyetujui. Invoice
+         *     booking lain atau kunci unggahan booking lain → `404`.
+         */
+        post: operations["uploadPortalProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kunci API usaha ini
+         * @description Hanya peran `owner` (`settings:write`). Tidak pernah memuat rahasianya — yang
+         *     tersimpan cuma hash argon2id dan 8 karakter prefix (BR-031).
+         */
+        get: operations["listApiKeys"];
+        put?: never;
+        /**
+         * Terbitkan kunci API
+         * @description **Rahasianya dibalas sekali di respons ini dan tidak pernah bisa dilihat lagi**
+         *     (BR-031). Kunci hanya membuka empat endpoint `/public/*` di `api.sewain.id`.
+         */
+        post: operations["createApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cabut kunci API
+         * @description **Cabut, bukan hapus** (`revoked_at`): log akses lama harus tetap bisa dijelaskan.
+         *     Panggilan berikutnya dengan kunci ini dibalas `401 invalid-api-key`. Mencabut yang
+         *     sudah dicabut tetap `204`.
+         */
+        delete: operations["revokeApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1405,6 +1789,26 @@ export interface components {
              * @example Senin–Sabtu 08.00–20.00, Minggu janjian dulu
              */
             operating_hours: string | null;
+            /**
+             * @description Bank tujuan transfer yang tampil di portal penyewa (§5).
+             * @example BCA
+             */
+            bank_name: string | null;
+            /**
+             * @description Nomor rekening, angka saja. Ditegakkan database.
+             * @example 1234567890
+             */
+            bank_account_number: string | null;
+            /** @example Budi Santoso */
+            bank_account_holder: string | null;
+            /**
+             * @description Origin situs pemilik yang boleh memanggil `api.sewain.id` dari browser (BR-031).
+             *     Kosong = tidak ada. **Kontrol browser, bukan kontrol keamanan.**
+             * @example [
+             *       "https://rentalbudi.com"
+             *     ]
+             */
+            allowed_origins: string[];
         };
         /**
          * @description Semua field opsional. Key yang absen dibiarkan apa adanya; `null` eksplisit adalah
@@ -1445,6 +1849,26 @@ export interface components {
              * @example Senin–Sabtu 08.00–20.00, Minggu janjian dulu
              */
             operating_hours?: string | null;
+            /**
+             * @description Bank tujuan transfer yang tampil di portal penyewa (§5).
+             * @example BCA
+             */
+            bank_name?: string | null;
+            /**
+             * @description Nomor rekening, angka saja. Ditegakkan database.
+             * @example 1234567890
+             */
+            bank_account_number?: string | null;
+            /** @example Budi Santoso */
+            bank_account_holder?: string | null;
+            /**
+             * @description Origin situs pemilik yang boleh memanggil `api.sewain.id` dari browser (BR-031).
+             *     Kosong = tidak ada. **Kontrol browser, bukan kontrol keamanan.**
+             * @example [
+             *       "https://rentalbudi.com"
+             *     ]
+             */
+            allowed_origins?: string[];
         };
         /**
          * @description Akun di usaha ini. Tidak pernah memuat `password_hash` maupun `owner_id` — yang
@@ -1988,6 +2412,12 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             payment: components["schemas"]["BookingPayment"];
+            /**
+             * Format: uri
+             * @description Tautan portal penyewa untuk booking ini (§5), untuk dikirim staf lewat WhatsApp.
+             *     `null` selama usaha belum punya slug — portal hidup di host pemilik.
+             */
+            portal_url: string | null;
         };
         /**
          * @description Ringkasan bayar booking ini, **dihitung saat dibaca** — seperti `overdue`
@@ -2325,6 +2755,346 @@ export interface components {
             data: components["schemas"]["Invoice"][];
             next_cursor: string | null;
         };
+        BookingBrief: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            status: components["schemas"]["BookingStatus"];
+            customer_name: string;
+            resource_name: string;
+            unit: components["schemas"]["UnitRef"];
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            end_at: string;
+        };
+        Dashboard: {
+            /** @description Sedang disewa dan lewat `end_at` (BR-041). */
+            overdue: components["schemas"]["BookingBrief"][];
+            /** @description Sudah kembali, berdeposit, belum diselesaikan dan tidak dibebaskan (BR-049). */
+            unsettled_deposits: components["schemas"]["BookingBrief"][];
+            /** @description Dipesan dan mulai hari ini (WIB). */
+            today_pickups: components["schemas"]["BookingBrief"][];
+            /** @description Sedang disewa dan seharusnya kembali hari ini (WIB). */
+            today_returns: components["schemas"]["BookingBrief"][];
+            invoices: {
+                unpaid_count: number;
+                overdue_count: number;
+                /**
+                 * Format: int64
+                 * @description Total tagihan yang belum dibayar — piutang, bukan pemasukan.
+                 */
+                outstanding: number;
+            };
+            /** @description Dihitung dari data, bukan kolom progres (BR-005). */
+            onboarding: {
+                has_resource: boolean;
+                has_unit: boolean;
+                has_booking: boolean;
+            };
+            /**
+             * Format: int64
+             * @description Basis kas, bulan berjalan (WIB). `null` untuk operator (BR-003).
+             */
+            revenue_this_month: number | null;
+            /** @description Dead-letter job runner (BR-072, BR-091). `null` untuk operator. */
+            failed_jobs: components["schemas"]["FailedJob"][] | null;
+        };
+        FailedJob: {
+            /** @example report.export */
+            type: string;
+            error: string;
+            attempt: number;
+            /** Format: date-time */
+            failed_at: string;
+        };
+        RevenueReport: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            revenue: {
+                /** Format: int64 */
+                rent: number;
+                /** Format: int64 */
+                late_fee: number;
+                /** Format: int64 */
+                damage: number;
+                /**
+                 * Format: int64
+                 * @description Negatif atau nol.
+                 */
+                discount: number;
+                /** Format: int64 */
+                total: number;
+            };
+            /** @description Saldo titipan — bukan pemasukan (BR-050). */
+            deposit_held: {
+                /** Format: int64 */
+                in: number;
+                /** Format: int64 */
+                returned: number;
+                /** Format: int64 */
+                balance: number;
+            };
+        };
+        UtilizationReport: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            data: {
+                unit: components["schemas"]["UnitRef"];
+                resource_name: string;
+                rented_days: number;
+                period_days: number;
+                /** @description 0..1. */
+                utilization: number;
+            }[];
+        };
+        IdleUnitsReport: {
+            data: {
+                unit: components["schemas"]["UnitRef"];
+                resource_name: string;
+                /**
+                 * Format: date-time
+                 * @description `null` = belum pernah disewa.
+                 */
+                last_rented_at: string | null;
+                idle_days: number;
+            }[];
+        };
+        ExportRequest: {
+            /** @enum {string} */
+            report: "revenue" | "utilization" | "idle_units" | "bookings";
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @enum {string} */
+            format: "csv" | "xlsx";
+        };
+        Job: {
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "failed";
+            download_url: string | null;
+            /** Format: date-time */
+            expires_at: string | null;
+            error: string | null;
+        };
+        /**
+         * @description Profil usaha untuk penyewa (BR-096). Tidak memuat `owner_id` maupun slug — host-nya
+         *     sudah slug itu.
+         */
+        PublicOwner: {
+            /** @example Rental Budi */
+            name: string;
+            /** @example +628123456789 */
+            whatsapp: string;
+            address: string;
+            operating_hours: string | null;
+        };
+        /**
+         * @description Satu jenis barang di katalog publik. Ketersediaan di level resource; unit fisik
+         *     tidak pernah disebut (BR-025). Empat field ketersediaan `null` bila tidak ada
+         *     rentang di query.
+         */
+        PublicResource: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            category: string | null;
+            pricing_unit: components["schemas"]["PricingUnit"];
+            /** Format: int64 */
+            base_price: number;
+            /** Format: int64 */
+            deposit_amount: number | null;
+            min_duration: number | null;
+            max_duration: number | null;
+            vehicle: components["schemas"]["VehicleSpec"] | null;
+            available: boolean | null;
+            /** @description Unit yang kosong di rentang itu — jumlahnya saja, bukan unitnya. */
+            available_count: number | null;
+            duration_qty: number | null;
+            /** Format: int64 */
+            subtotal: number | null;
+        };
+        PublicResourceList: {
+            data: components["schemas"]["PublicResource"][];
+        };
+        /**
+         * @description `PublicResource` ditambah deskripsi, tiga teks syarat juragan (kosong = tidak
+         *     ditampilkan), dan `system_terms` yang dirakit server (BR-095).
+         */
+        PublicResourceDetail: components["schemas"]["PublicResource"] & {
+            description: string | null;
+            terms_excludes: string | null;
+            terms_requirements: string | null;
+            terms_cancellation: string | null;
+            /** Format: int64 */
+            late_fee_per_unit: number | null;
+            /**
+             * @example [
+             *       "1 hari = 24 jam",
+             *       "Telat kembali dikenakan Rp 100.000 per hari"
+             *     ]
+             */
+            system_terms: string[];
+        };
+        PublicBookingRequest: {
+            /** Format: uuid */
+            resource_id: string;
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            end_at: string;
+            customer: {
+                name: string;
+                /** @description `0812…` dan `+62812…` dibaca sama. */
+                phone: string;
+            };
+        };
+        PublicBookingCreated: {
+            /** @example SWN-0051 */
+            code: string;
+            /** @enum {string} */
+            status: "draft";
+            /** Format: date-time */
+            expires_at: string;
+            /**
+             * Format: uri
+             * @description Tautan portal penyewa untuk pengajuan ini (§5).
+             */
+            track_url: string;
+        };
+        /**
+         * @description Satu booking, dilihat penyewanya (BR-002). Tanpa kode unit, nama staf, dan catatan
+         *     internal.
+         */
+        PortalBooking: {
+            code: string;
+            status: components["schemas"]["BookingStatus"];
+            overdue: boolean;
+            customer_name: string;
+            resource_name: string;
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            end_at: string;
+            /** Format: date-time */
+            actual_return_at: string | null;
+            pricing_unit: components["schemas"]["PricingUnit"];
+            duration_qty: number;
+            /** Format: int64 */
+            subtotal: number;
+            deposit: components["schemas"]["PortalDeposit"];
+            invoices: components["schemas"]["PortalInvoice"][];
+            photos: components["schemas"]["PortalPhoto"][];
+            owner: components["schemas"]["PortalOwner"];
+        };
+        /**
+         * @description `none` tanpa deposit; `unpaid` belum dibayar; `held` sudah dibayar dan ditahan;
+         *     `waived` dibebaskan pemilik; `settled` sudah diselesaikan (BR-048–BR-051).
+         */
+        PortalDeposit: {
+            /** @enum {string} */
+            state: "none" | "unpaid" | "held" | "waived" | "settled";
+            /** Format: int64 */
+            amount: number | null;
+            /** Format: int64 */
+            deducted: number | null;
+            /** Format: int64 */
+            refunded: number | null;
+        };
+        PortalInvoice: {
+            /** Format: uuid */
+            id: string;
+            number: string;
+            status: components["schemas"]["InvoiceStatus"];
+            /** Format: date-time */
+            due_at: string;
+            /** Format: date-time */
+            paid_at: string | null;
+            /** Format: int64 */
+            total: number;
+            lines: {
+                kind: string;
+                description: string;
+                /** Format: int64 */
+                amount: number;
+            }[];
+            /** @description Ada bukti yang sudah dikirim dan belum diputuskan staf. */
+            proof_pending: boolean;
+        };
+        PortalPhoto: {
+            /** @enum {string} */
+            direction: "pickup" | "return";
+            /** @description URL bertanda tangan, hidup 1 jam. */
+            url: string;
+            /** Format: date-time */
+            taken_at: string;
+        };
+        PortalOwner: {
+            name: string;
+            whatsapp: string | null;
+            address: string | null;
+            /** @description Rekening tujuan transfer; `null` sampai pemilik mengisinya. */
+            bank: {
+                /** @example BCA */
+                name: string;
+                account_number: string;
+                account_holder: string;
+            } | null;
+        };
+        PortalUploadRequest: {
+            /** @enum {string} */
+            content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
+            /** Format: int64 */
+            bytes: number;
+        };
+        PortalProofInput: {
+            /** Format: uuid */
+            invoice_id: string;
+            object_key: string;
+        };
+        PortalProofReceived: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description Kunci API tanpa rahasianya (BR-031). */
+        ApiKey: {
+            /** Format: uuid */
+            id: string;
+            /** @example situs rentalbudi.com */
+            name: string;
+            /**
+             * @description 8 karakter pertama sesudah `swn_live_`, untuk mengenali kuncinya.
+             * @example a1b2c3d4
+             */
+            key_prefix: string;
+            rate_limit_per_min: number;
+            /** Format: date-time */
+            last_used_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ApiKeyCreate: {
+            name: string;
+            /** @default 60 */
+            rate_limit_per_min: number;
+        };
+        ApiKeyCreated: components["schemas"]["ApiKey"] & {
+            /**
+             * @description Kunci utuh. **Hanya di respons ini** — tidak pernah bisa dilihat lagi.
+             * @example swn_live_a1b2c3d4…
+             */
+            secret: string;
+        };
         /**
          * @description Kode error generik yang dipakai setiap endpoint sebelum sampai ke aturan bisnisnya.
          *     Kode spesifik per aturan bisnis ada di `04-api-spec.md` §2 dan ditambahkan oleh item
@@ -2334,7 +3104,7 @@ export interface components {
          *     underscore.
          * @enum {string}
          */
-        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable" | "evidence-immutable" | "upload-not-found" | "upload-type-mismatch" | "handover-photo-required" | "meter-value-required" | "payment-required-before-pickup" | "physical-conflict-unconfirmed" | "waiver-reason-required" | "deposit-not-settled" | "deposit-not-collected" | "invoice-already-paid" | "deposit-already-paid" | "deposit-not-applicable";
+        ErrorCode: "unauthenticated" | "permission-denied" | "validation-failed" | "not-found" | "rate-limited" | "internal" | "email-taken" | "slug-taken" | "slug-invalid" | "email-not-verified" | "verification-token-invalid" | "request-in-flight" | "booking-conflict" | "duration-out-of-range" | "customer-blacklisted" | "unit-not-swappable" | "evidence-immutable" | "upload-not-found" | "upload-type-mismatch" | "handover-photo-required" | "meter-value-required" | "payment-required-before-pickup" | "physical-conflict-unconfirmed" | "waiver-reason-required" | "deposit-not-settled" | "deposit-not-collected" | "invoice-already-paid" | "deposit-already-paid" | "deposit-not-applicable" | "invalid-api-key" | "origin-not-allowed" | "quota-exceeded";
         /**
          * @description Satu detail per-field di dalam `Problem`. Ia membawa apa pun yang dibutuhkan kegagalan
          *     spesifiknya, jadi properti tambahan diizinkan secara desain.
@@ -2491,6 +3261,18 @@ export interface components {
          *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
          */
         IdempotencyKey: string;
+        /** @description Awal periode, inklusif. Rentang maksimal 366 hari. */
+        ReportFrom: string;
+        /** @description Akhir periode, eksklusif. */
+        ReportTo: string;
+        /** @description Awal rentang sewa. Berpasangan dengan `end_at`; tanpa keduanya, tanpa ketersediaan. */
+        PublicStartAt: string;
+        PublicEndAt: string;
+        /**
+         * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+         *     di host pemiliknya.
+         */
+        PortalToken: string;
     };
     requestBodies: never;
     headers: {
@@ -2822,6 +3604,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
         };
     };
     updateUser: {
@@ -4102,6 +4885,441 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getRevenueReport: {
+        parameters: {
+            query: {
+                /** @description Awal periode, inklusif. Rentang maksimal 366 hari. */
+                from: components["parameters"]["ReportFrom"];
+                /** @description Akhir periode, eksklusif. */
+                to: components["parameters"]["ReportTo"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Laporan pemasukan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueReport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getUtilizationReport: {
+        parameters: {
+            query: {
+                /** @description Awal periode, inklusif. Rentang maksimal 366 hari. */
+                from: components["parameters"]["ReportFrom"];
+                /** @description Akhir periode, eksklusif. */
+                to: components["parameters"]["ReportTo"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pemakaian per unit, paling rendah dulu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilizationReport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getIdleUnitsReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unit menganggur, paling lama dulu. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdleUnitsReport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    exportReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Ekspor diantrekan. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        job_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    getJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status job. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPublicOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profil usaha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOwner"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listPublicResources: {
+        parameters: {
+            query?: {
+                /** @description Awal rentang sewa. Berpasangan dengan `end_at`; tanpa keduanya, tanpa ketersediaan. */
+                start_at?: components["parameters"]["PublicStartAt"];
+                end_at?: components["parameters"]["PublicEndAt"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Katalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicResourceList"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getPublicResource: {
+        parameters: {
+            query?: {
+                /** @description Awal rentang sewa. Berpasangan dengan `end_at`; tanpa keduanya, tanpa ketersediaan. */
+                start_at?: components["parameters"]["PublicStartAt"];
+                end_at?: components["parameters"]["PublicEndAt"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicResourceDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    createPublicBooking: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description UUID yang dibuat klien, **satu per niat pengguna** — bukan satu per percobaan jaringan.
+                 *     Klien yang membuat kunci baru setiap retry sudah membatalkan seluruh gunanya.
+                 *
+                 *     Kunci yang sama dijalankan sekali; panggilan berikutnya memutar ulang respons pertama
+                 *     bulat-bulat. Kunci yang masih berjalan dijawab `409 request-in-flight` (BR-090).
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Pengajuan tercatat, menunggu konfirmasi pemilik. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicBookingCreated"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getPortalBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+                 *     di host pemiliknya.
+                 */
+                token: components["parameters"]["PortalToken"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalBooking"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    presignPortalUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+                 *     di host pemiliknya.
+                 */
+                token: components["parameters"]["PortalToken"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description URL unggah dan kuncinya. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignedUpload"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    uploadPortalProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Token portal: id booking + HMAC, tidak tersimpan di mana pun (§5). Ia hanya berlaku
+                 *     di host pemiliknya.
+                 */
+                token: components["parameters"]["PortalToken"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalProofInput"];
+            };
+        };
+        responses: {
+            /** @description Bukti diterima, menunggu dicek pemilik. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalProofReceived"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kunci, terbaru dulu, termasuk yang sudah dicabut. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKey"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiKeyCreate"];
+            };
+        };
+        responses: {
+            /** @description Kunci baru beserta rahasianya — sekali ini saja. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyCreated"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+        };
+    };
+    revokeApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kunci dicabut. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
