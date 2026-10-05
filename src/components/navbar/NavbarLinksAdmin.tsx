@@ -113,6 +113,11 @@ export default function HeaderLinks({ secondary }: { secondary: boolean }) {
                 <Text fontSize="sm">Pengaturan</Text>
               </MenuItem>
             )}
+            {canSettings && (
+              <MenuItem as={NextLink} href="/settings/api-keys" _hover={{ bg: 'none' }} _focus={{ bg: 'none' }} borderRadius="8px" px="14px">
+                <Text fontSize="sm">Kunci API</Text>
+              </MenuItem>
+            )}
             {canTeam && (
               <MenuItem as={NextLink} href="/team" _hover={{ bg: 'none' }} _focus={{ bg: 'none' }} borderRadius="8px" px="14px">
                 <Text fontSize="sm">Tim</Text>
