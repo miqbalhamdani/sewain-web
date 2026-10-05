@@ -9,6 +9,9 @@ yarn.lock
 
 # testing
 /coverage
+/test-results
+/playwright-report
+/blob-report
 
 # production
 /build

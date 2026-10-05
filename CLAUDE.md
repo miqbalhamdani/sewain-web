@@ -57,6 +57,7 @@ npm run lint
 npm run typecheck      # tsc --noEmit
 npm run generate       # ../docs/openapi.yaml -> src/lib/api/schema.d.ts
 npm run generate:check # gagal kalau hasil generate belum di-commit
+npm run e2e            # Playwright -- stack lengkap harus sudah jalan, lihat "E2E" di bawah
 ```
 
 **`generate` menulis, `generate:check` yang menegakkan.** Yang kedua menjalankan yang pertama lalu
@@ -71,13 +72,41 @@ Yang **belum ada** dan siapa yang membawanya:
 | Perintah | Isi | Datang bareng |
 |---|---|---|
 | `npm run test` | vitest + testing-library | setup tooling test |
-| `npm run e2e` | playwright | setup tooling test |
-| `npm run check` | generate:check + lint + typecheck + test — jalankan sebelum tiap PR | setelah dua di atas ada |
+| `npm run check` | generate:check + lint + typecheck + test — jalankan sebelum tiap PR | setelah yang di atas ada |
 
 `@testing-library/*` dan `@types/jest` masih nangkring di `dependencies` warisan template —
 biarkan sampai runner test yang sebenarnya masuk, lalu pindahkan ke `devDependencies` sekalian.
 `typescript` **sudah** pindah, karena `openapi-typescript` v7 menuntut TS ≥ 5 dan repo ini
 tertinggal di 4.9.
+
+### E2E (`S1-070`, `S1-071`)
+
+`e2e/` berisi dua suite Playwright: satu siklus booking penuh lewat backoffice, dan halaman publik
+→ draft → konfirmasi (plus subdomain asing dan draft kedaluwarsa). Suite **tidak** menyalakan
+server apa pun -- ia menguji stack seperti produksi menyajikannya, semuanya lewat Caddy:
+backoffice di `app.<apex>`, halaman publik di `<slug>.<apex>`. CI (`.github/workflows/ci.yml`,
+job `e2e`) menyalakan stack itu sendiri; di lokal:
+
+```bash
+# sewain-api, masing-masing di terminal sendiri
+APP_BASE_URL=http://app.sewain.localhost:8088 REGISTER_PER_HOUR_IP=100 make dev
+make worker
+make proxy                      # Caddy :8088
+# sewain-web
+npm run build && npm run start  # produksi: rewrite /api dev mati, Caddy yang merutekan
+npm run e2e
+```
+
+Yang dibaca suite dari env: `E2E_PROXY_PORT` (8088), `E2E_MAILPIT_URL` (`http://localhost:8025` --
+pendaftaran diverifikasi lewat tautan di Mailpit), `E2E_DATABASE_URL` (pemilik skema, untuk
+memundurkan `expires_at` satu draft), `E2E_SCHEDULER` (default `go run ./cmd/scheduler -once` di
+`E2E_API_DIR=../sewain-api`), `E2E_SLUG`. Setiap run membuat pemilik baru, jadi aman di database
+yang sudah berisi.
+
+**Jangan bagi Redis dengan worker lain.** `scheduler -once` menaruh sapuan kedaluwarsa di stream
+`jobs`; worker mana pun yang membaca Redis yang sama akan mengambilnya -- termasuk worker dev yang
+menunjuk database lain, yang lalu menyapu database **itu**. Stack E2E yang berdampingan dengan
+stack dev memakai `REDIS_URL=redis://localhost:6379/1`.
 
 ---
 

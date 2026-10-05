@@ -1,0 +1,189 @@
+# The bar for every change, automated.  (S1-069, S1-070, S1-071)
+#
+# check: contract drift (generate:check against sewain-docs main), types,
+# lint, the node:test checks, and a production build.
+#
+# e2e: the whole stack the way production serves it -- PostgreSQL 18, Redis,
+# MinIO, Mailpit, the API and worker from sewain-api, Caddy in front, and a
+# production build of this app -- then the Playwright suites. sewain-api is
+# checked out at the branch of the same name when one exists (a change that
+# spans both repos is tested together), else main.
+#
+# Layout matters: the contract lives at ../docs, so this repo is checked out at
+# $GITHUB_WORKSPACE/sewain-web with its siblings beside it. Nightly for drift.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 22 * * *" # 05:00 WIB
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: sewain-web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sewain-web
+      - uses: actions/checkout@v4
+        with:
+          repository: miqbalhamdani/sewain-docs
+          path: docs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sewain-web/package-lock.json
+      - run: npm ci
+      - name: Contract drift
+        run: npm run generate:check
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: node:test checks
+        run: find src -name '*.check.mjs' -print0 | xargs -0 node --experimental-strip-types --test
+      - name: Production build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:8
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      mailpit:
+        image: axllent/mailpit
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      # The API, the worker and the suites' database lever all point here.
+      DATABASE_URL: postgres://postgres@localhost:5432/sewain_e2e?sslmode=disable
+      APP_DATABASE_URL: postgres://app_user@localhost:5432/sewain_e2e?sslmode=disable
+      E2E_DATABASE_URL: postgres://postgres@localhost:5432/sewain_e2e?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
+      OBJECT_STORE_URL: http://localhost:9000
+      SMTP_ADDR: localhost:1025
+      ENVIRONMENT: development
+      APP_BASE_URL: http://app.sewain.localhost:8088
+      TENANT_ORIGIN_FORMAT: http://%s.sewain.localhost:8088
+      # Every caller comes through one Caddy, so per-IP limits see one address.
+      REGISTER_PER_HOUR_IP: "100"
+      PUBLIC_POST_PER_HOUR_IP: "100"
+      E2E_SLUG: e2e-${{ github.run_id }}
+      E2E_SCHEDULER: ${{ github.workspace }}/bin/scheduler -once
+      E2E_API_DIR: ${{ github.workspace }}/sewain-api
+      PGHOST: localhost
+      PGUSER: postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sewain-web
+      - name: Pick the sewain-api branch
+        id: api
+        run: |
+          branch="${{ github.head_ref || github.ref_name }}"
+          if git ls-remote --exit-code --heads https://github.com/miqbalhamdani/sewain-api "$branch" > /dev/null; then
+            echo "ref=$branch" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        with:
+          repository: miqbalhamdani/sewain-api
+          ref: ${{ steps.api.outputs.ref }}
+          path: sewain-api
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sewain-api/go.mod
+          cache-dependency-path: sewain-api/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sewain-web/package-lock.json
+
+      # MinIO no longer publishes images; Homebrew's bottle is the release
+      # developers run locally.
+      - name: MinIO
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install minio
+          mkdir -p "$RUNNER_TEMP/minio"
+          nohup minio server "$RUNNER_TEMP/minio" --address :9000 > "$RUNNER_TEMP/minio.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/live && break; sleep 1; done
+
+      # Node resolves the tenant hosts too (server-side rendering calls back
+      # through Caddy), not only Chromium -- so they go in /etc/hosts.
+      - name: Hosts
+        run: |
+          echo "127.0.0.1 app.sewain.localhost api.sewain.localhost $E2E_SLUG.sewain.localhost nobody-$E2E_SLUG.sewain.localhost" \
+            | sudo tee -a /etc/hosts
+
+      - name: API, worker
+        working-directory: sewain-api
+        run: |
+          createdb sewain_e2e
+          go run ./cmd/migrate
+          go run ./cmd/storage-init
+          mkdir -p "$GITHUB_WORKSPACE/bin"
+          go build -o "$GITHUB_WORKSPACE/bin/" ./cmd/api ./cmd/worker ./cmd/scheduler
+          nohup "$GITHUB_WORKSPACE/bin/api" > "$RUNNER_TEMP/api.log" 2>&1 &
+          nohup "$GITHUB_WORKSPACE/bin/worker" > "$RUNNER_TEMP/worker.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/healthz > /dev/null && break; sleep 1; done
+          curl -sf http://localhost:8080/healthz
+
+      # The same Caddyfile developers run with `make proxy`: Host passed
+      # through, /api/* to the API with the proxy secret, the rest to Next.
+      - name: Caddy
+        run: |
+          docker run -d --name caddy --network host \
+            -v "$GITHUB_WORKSPACE/sewain-api/Caddyfile.dev:/etc/caddy/Caddyfile:ro" \
+            -e APEX=sewain.localhost -e PROXY_PORT=8088 -e API_PORT=8080 -e WEB_PORT=3000 \
+            caddy:2 caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Web (production build)
+        working-directory: sewain-web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run build
+          nohup npx next start -p 3000 > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://app.sewain.localhost:8088/login > /dev/null && break; sleep 1; done
+          curl -sf -o /dev/null http://app.sewain.localhost:8088/login
+
+      - name: Playwright
+        working-directory: sewain-web
+        run: npm run e2e
+
+      - name: Report and logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            sewain-web/playwright-report
+            sewain-web/test-results
+            ${{ runner.temp }}/*.log
+          retention-days: 7
