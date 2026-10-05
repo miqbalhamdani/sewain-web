@@ -14,9 +14,15 @@ Fase 1 · Rental & sewa. Next.js 15 App Router · TypeScript · TanStack Query +
 tidak mewarisi Chakra maupun `styles/App.css`. Kalau kamu memindahkan provider ke root, halaman
 yang dibuka penyewa di jaringan seluler ikut mengunduh seluruh Chakra + emotion.
 
-**Tailwind belum dipasang.** Ia masuk bareng halaman publik pertama, diimpor **hanya** dari layout
-subtree publik — jangan dari root. Preflight Tailwind yang bocor ke root akan me-reset tipografi
-seluruh backoffice Chakra.
+**Tailwind v4 terpasang sejak M5** (`postcss.config.mjs`), dan satu-satunya stylesheet yang
+mengimpornya adalah `(public)/[slug]/public.css`, diimpor **hanya** dari layout subtree publik —
+jangan dari root. Preflight Tailwind yang bocor ke root akan me-reset tipografi seluruh backoffice
+Chakra. `source(none)` + `@source` di file itu membatasi pemindaiannya ke subtree publik dan
+`components/shared/`.
+
+**Lokal:** halaman publik hanya bisa diuji lewat proxy — `make proxy` di `sewain-api` (Caddy di
+`http://<slug>.sewain.localhost:8088`, `*.localhost` sudah resolve ke loopback). `PUBLIC_APEX`
+dibaca `middleware.ts`, sama dengan API dan Caddy.
 
 Layar referensi Horizon yang masih ada — `admin/default`, `admin/data-tables`, `admin/profile`,
 `auth/sign-in` — adalah contoh pola, bukan layar produk. Ganti, jangan tumpuk.
