@@ -133,7 +133,9 @@ export default function CatalogPage() {
       title="Barang"
       subtitle="Jenis barang yang kamu sewakan. Unit fisiknya diatur di dalam masing-masing."
       action={
-        canWrite && (
+        // Hidden while empty: the empty state carries the one primary action
+        // (S1-068), as on Booking and Penyewa.
+        canWrite && data?.length !== 0 && (
           <Button as={Link} href="/catalog/new" variant="brand" leftIcon={<AddIcon />}>
             Tambah barang
           </Button>
