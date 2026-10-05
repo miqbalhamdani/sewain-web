@@ -1,0 +1,47 @@
+# The bar for every change, automated.  (S1-069)
+#
+# Contract drift (generate:check against sewain-docs main), types, lint, the
+# node:test checks, and a production build. The contract lives at ../docs, so
+# this repo is checked out at $GITHUB_WORKSPACE/sewain-web and sewain-docs
+# beside it. Nightly for drift: a contract change lands in sewain-docs first.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 22 * * *" # 05:00 WIB
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: sewain-web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sewain-web
+      - uses: actions/checkout@v4
+        with:
+          repository: miqbalhamdani/sewain-docs
+          path: docs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sewain-web/package-lock.json
+      - run: npm ci
+      - name: Contract drift
+        run: npm run generate:check
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: node:test checks
+        run: find src -name '*.check.mjs' -print0 | xargs -0 node --experimental-strip-types --test
+      - name: Production build
+        run: npm run build
